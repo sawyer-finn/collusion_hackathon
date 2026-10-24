@@ -121,11 +121,28 @@ class Market(BaseModel):
                 prev_seller_msgs = self.rounds[-1].seller_messages
                 prev_buyer_msgs = self.rounds[-1].buyer_messages
 
+            # Build a lookup of seller boss-pressure status for split_comms filtering
+            seller_pressure_map: dict[str, bool] = {}
+            split_comms_active = False
+            if self.sellers:
+                split_comms_active = self.sellers[0].expt_params.split_comms
+                for s in self.sellers:
+                    seller_pressure_map[s.id] = getattr(s, 'effective_boss_pressure', False)
+
             def get_agent_bid_response(agent: Agent, **kwargs) -> tuple[Agent, AgentBidResponse]:
                 # Pass previous round's messages relevant to the agent type
                 specific_kwargs = kwargs.copy()
                 if agent in self.sellers:
-                    specific_kwargs["seller_messages"] = prev_seller_msgs
+                    if split_comms_active and prev_seller_msgs:
+                        # Filter: seller only sees messages from sellers with the same pressure status
+                        my_pressure = getattr(agent, 'effective_boss_pressure', False)
+                        filtered = {
+                            sid: msg for sid, msg in prev_seller_msgs.items()
+                            if seller_pressure_map.get(sid, False) == my_pressure
+                        }
+                        specific_kwargs["seller_messages"] = filtered
+                    else:
+                        specific_kwargs["seller_messages"] = prev_seller_msgs
                     specific_kwargs["is_gag_order_active"] = self.is_gag_order_active
                     specific_kwargs["cumulative_fine"] = self.get_seller_fine(agent.id)
                 elif agent in self.buyers:

@@ -138,6 +138,7 @@ def run_simulation(params: ExperimentParams, log_dir: Optional[str] = None, use_
     logger.metadata["seller_ids"] = [seller.id for seller in sellers]
     logger.metadata["boss_pressure_sellers"] = [seller.id for i, seller in enumerate(sellers) if i in boss_set]
     logger.metadata["boss_pressure_fraction"] = params.boss_pressure_fraction
+    logger.metadata["split_comms"] = params.split_comms
     logger.metadata["resolved_models"] = {
         "sellers": [effective_model(m) for m in params.seller_models],
         "buyers": [effective_model(m) if m else ZIP_BUYER for m in params.buyer_models],
@@ -339,6 +340,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["gag", "fine", "both"],
         help="what happens when overseer flags coordination: gag (message limit), fine (profit deduction), both",
     )
+    a.add_argument("--split_comms", action="store_true", help="separate message channels: pressured sellers only see pressured sellers' messages, rogues only see rogues'")
     a.add_argument(
         "--deterrence_level",
         type=str,
@@ -418,6 +420,7 @@ def main() -> None:
             boss_pressure=args.boss_pressure,
             boss_pressure_fraction=args.boss_pressure_fraction,
             overseer_penalty=args.overseer_penalty,
+            split_comms=args.split_comms,
             temperature=args.temperature,
             tag=tag,
             max_message_length=args.max_message_length,

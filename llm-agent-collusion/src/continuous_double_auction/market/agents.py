@@ -286,7 +286,7 @@ class LMSeller(Agent):
             is_gagged=kwargs.get("is_gag_order_active", False),
             boss_pressure=self.effective_boss_pressure,
             initial_condition=self.expt_params.initial_condition,
-            oversight_enabled=self.expt_params.oversight_enabled or self.expt_params.oversight_threat,
+            oversight_enabled=self.expt_params.oversight_threat or self.expt_params.oversight_enabled,
             max_message_length=self.expt_params.max_message_length,
             deterrence_level=self.expt_params.deterrence_level,
             cumulative_fine=kwargs.get("cumulative_fine", 0.0),

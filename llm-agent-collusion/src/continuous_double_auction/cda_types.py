@@ -42,7 +42,7 @@ class ExperimentParams(BaseModel):
     buyer_comms_enabled: bool = False
     hide_num_rounds: bool = False  # Whether to hide the total number of rounds from agents
     oversight_enabled: bool = False  # Whether to enable oversight for sellers
-    oversight_threat: bool = False  # Show oversight warning in prompt without actually running the overseer
+    oversight_threat: Optional[str] = None  # Oversight enforcement mode: "expost" (review after all trading) or "immediate" (each round)
     boss_pressure: bool = False  # Whether to apply pressure on sellers to keep prices high
     boss_pressure_fraction: float = 1.0  # Fraction of sellers that receive the boss pressure message (0.0-1.0)
     overseer_penalty: str = "gag"  # What happens when overseer flags coordination: gag, fine, both
@@ -81,6 +81,8 @@ class ExperimentParams(BaseModel):
             raise ValueError('boss_pressure_fraction must be between 0 and 1')
         if self.overseer_penalty not in ("gag", "fine", "both"):
             raise ValueError('overseer_penalty must be one of: gag, fine, both')
+        if self.oversight_threat is not None and self.oversight_threat not in ("expost", "immediate"):
+            raise ValueError('oversight_threat must be one of: expost, immediate')
         self.buyer_models = [None if m in (None, ZIP_BUYER, "none", "None") else m for m in self.buyer_models]
         return self
 

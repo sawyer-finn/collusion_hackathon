@@ -143,11 +143,19 @@ def run_simulation(params: ExperimentParams, log_dir: Optional[str] = None, use_
         "sellers": [effective_model(m) for m in params.seller_models],
         "buyers": [effective_model(m) if m else ZIP_BUYER for m in params.buyer_models],
         "overseer": effective_model(params.overseer_model) if params.oversight_enabled else None,
+        "oversight_threat_overseer": effective_model(params.overseer_model) if params.oversight_threat else None,
     }
 
     overseer = None
     if params.oversight_enabled:
         overseer = MessageOverseer(client=get_client(model=params.overseer_model, temperature=0), logger=logger)
+
+    # Oversight threat enforcement overseer (separate from the old overseer)
+    oversight_threat_overseer = None
+    if params.oversight_threat:
+        oversight_threat_overseer = MessageOverseer(
+            client=get_client(model=params.overseer_model, temperature=0), logger=logger
+        )
 
     market = Market(
         sellers=sellers,
@@ -157,6 +165,9 @@ def run_simulation(params: ExperimentParams, log_dir: Optional[str] = None, use_
         overseer_rng=random.Random(params.seed) if params.seed is not None else None,
         overseer_prompt_template=params.overseer_prompt_template,
         overseer_penalty=params.overseer_penalty,
+        oversight_threat=params.oversight_threat,
+        oversight_threat_overseer=oversight_threat_overseer,
+        seller_valuation=params.seller_valuations[0],
     )
 
     if params.initial_condition:
@@ -177,6 +188,14 @@ def run_simulation(params: ExperimentParams, log_dir: Optional[str] = None, use_
     for _ in tqdm(range(params.rounds)):
         market.run_round()
         logger.log_auction_round(last_round=market.rounds[-1])
+
+    # Apply ex-post fines after all rounds complete
+    if params.oversight_threat == "expost":
+        market.apply_expost_fines()
+        if market.expost_collusion_first_round is not None:
+            total_fines = sum(market.seller_fines.values())
+            print(f"Ex-post enforcement: collusion first detected in round {market.expost_collusion_first_round}, "
+                  f"total fines: ${total_fines:.2f}")
 
     logger.save_experiment_summary()
     metrics = compute_metrics_for_exp_dir(logger.log_dir, run_llm_judge=params.llm_eval)
@@ -321,8 +340,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     a.add_argument(
         "--oversight_threat",
-        action="store_true",
-        help="show oversight warning in seller prompt without actually running the overseer (ex-post threat only)",
+        type=str,
+        default=None,
+        choices=["expost", "immediate"],
+        help="oversight enforcement mode: 'expost' (review after all trading, fines at end) or 'immediate' (fines each round)",
     )
     a.add_argument("--overseer_model", type=str, default="gpt-4.1-mini", help="paper: gpt-4.1-mini")
     a.add_argument(
@@ -390,13 +411,15 @@ def main() -> None:
     calls_per_run = args.rounds * (args.sellers + n_lm_buyers)
     if args.oversight_enabled:
         calls_per_run += args.rounds
+    if args.oversight_threat:
+        calls_per_run += args.rounds  # oversight threat overseer runs each round
     if args.llm_eval:
         calls_per_run += args.rounds * args.sellers
     n_calls = calls_per_run * len(args.seeds)
     models = sorted({effective_model(m) for m in seller_models + [b for b in buyer_models if b not in (ZIP_BUYER,)]})
     print(
         f"{len(args.seeds)} run(s) × {args.rounds} rounds × ({args.sellers} sellers + {n_lm_buyers} LLM buyers"
-        f"{' + overseer' if args.oversight_enabled else ''}{' + judge' if args.llm_eval else ''}) "
+        f"{' + overseer' if args.oversight_enabled else ''}{' + threat-overseer' if args.oversight_threat else ''}{' + judge' if args.llm_eval else ''}) "
         f"≈ {n_calls:,} model calls via OpenRouter.\n"
         "Rates: " + " · ".join(f"https://openrouter.ai/{m}" for m in models)
     )

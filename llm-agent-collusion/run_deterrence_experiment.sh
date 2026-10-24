@@ -1,65 +1,62 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────────────
-# Deterrence Curve Experiment — Apart Research AI Collusion Sprint
+# Collusion Restriction Experiment — Apart Research AI Collusion Sprint
 # Track 1, Q1.5: Which single restriction removes the most collusion
 #                at the least cost?
 #
-# Conditions (all use --paper for 5 sellers, 6 ZIP buyers, 30 rounds):
+# Two principled phases:
 #
-#   BASELINES (from Agrawal et al.)
-#   B1  base-no-comms     — no comms, no oversight
-#   B2  base-comms        — comms enabled, no oversight
-#   B3  oversight-comms   — comms + oversight (original message-only)
+# PHASE 1 — CARTEL FRAGMENTATION
+# Vary what fraction of sellers receive boss pressure (CEO message).
+# Tests: at what threshold does collusion collapse?
+#   F0: 0/5 sellers pressured (baseline — no collusion driver)
+#   F1: 1/5 sellers pressured
+#   F2: 2/5 sellers pressured
+#   F3: 3/5 sellers pressured
+#   F4: 4/5 sellers pressured
+#   F5: 5/5 sellers pressured (full collusion driver)
 #
-#   DETERRENCE CURVE (prompt-only, zero LLM cost)
-#   D1  deter-vague       — comms + vague deterrence warning
-#   D2  deter-moderate    — comms + moderate deterrence warning
-#   D3  deter-severe      — comms + severe deterrence warning
-#   D4  deter-prob        — comms + probabilistic deterrence
-#   D5  deter-demonstrated — comms + demonstrated deterrence
-#   D6  deter-transparency — comms + transparency deterrence
+# PHASE 2 — OVERSIGHT DESIGN
+# Factorial: detection method × punishment type
+# Tests: what makes an overseer actually effective?
+#   O0: Collusion baseline (= F5, boss pressure, comms, no oversight)
+#   O1: Messages-only detection + gag order
+#   O2: Messages-only detection + fines
+#   O3: Price-aware detection + gag order
+#   O4: Price-aware detection + fines
+#   O5: Full combo: price-aware detection + gag + fines
 #
-#   OVERSEER VISIBILITY VARIANTS (extended overseer, LLM cost)
-#   E1  overseer-price-aware  — comms + extended overseer sees messages + prices
-#   E2  overseer-price-only   — NO comms + extended overseer sees prices only
-#   E3  overseer-orderbook    — comms + extended overseer sees bids/asks only
-#
-#   COMBINATION
-#   C1  deter-severe+oversight — comms + severe deterrence + original oversight
-#
-# Seeds: 3 seeds per condition for statistical power within budget
-# Model: gpt-4.1 (paper default) via OpenRouter
+# Seeds: 3 per condition for statistical power
+# Model: gpt-4.1 via OpenRouter
 #
 # Usage:
-#   export OPENROUTER_API_KEY=sk-...
-#   bash run_deterrence_experiment.sh [--dry-run] [--seeds "0 1 2"] [--conditions "B1 B2"]
+#   source compute.env  # sets OPENROUTER_API_KEY
+#   bash run_deterrence_experiment.sh [--dry-run] [--seeds "0 1 2"] [--phase 1|2|all]
 # ──────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-# Parse optional args
 DRY_RUN=false
 SEEDS="0 1 2"
-CONDITIONS=""
+PHASE="all"
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --dry-run)    DRY_RUN=true; shift ;;
-    --seeds)      SEEDS="$2"; shift 2 ;;
-    --conditions) CONDITIONS="$2"; shift 2 ;;
-    *)            echo "Unknown arg: $1"; exit 1 ;;
+    --dry-run)  DRY_RUN=true; shift ;;
+    --seeds)    SEEDS="$2"; shift 2 ;;
+    --phase)    PHASE="$2"; shift 2 ;;
+    *)          echo "Unknown arg: $1"; exit 1 ;;
   esac
 done
 
-# Validate env
 if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
-  echo "Error: OPENROUTER_API_KEY not set" >&2
+  echo "Error: OPENROUTER_API_KEY not set. Run: source compute.env" >&2
   exit 1
 fi
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 SIM="python $REPO_ROOT/src/continuous_double_auction/simulation.py"
-COMMON="--paper --yes"  # 5 sellers, 6 ZIP buyers, 30 rounds; skip confirmation
+# Paper config: 5 sellers, 6 ZIP buyers, 30 rounds
+COMMON="--paper --yes"
 
-# Build seed args
 SEED_ARGS=""
 for s in $SEEDS; do
   SEED_ARGS="$SEED_ARGS $s"
@@ -77,74 +74,78 @@ run_condition() {
   echo ""
 }
 
-# ── BASELINES ──
+# ══════════════════════════════════════════════════════════════════════
+# PHASE 1 — CARTEL FRAGMENTATION
+# All use: comms enabled, boss_pressure on, vary boss_pressure_fraction
+# ══════════════════════════════════════════════════════════════════════
 
-run_B1() { run_condition "base-no-comms" ; }
-run_B2() { run_condition "base-comms" --seller_comms_enabled ; }
-run_B3() { run_condition "oversight-comms" --seller_comms_enabled --oversight_enabled ; }
+run_F0() { run_condition "frac-0of5" --seller_comms_enabled --boss_pressure --boss_pressure_fraction 0.0 ; }
+run_F1() { run_condition "frac-1of5" --seller_comms_enabled --boss_pressure --boss_pressure_fraction 0.2 ; }
+run_F2() { run_condition "frac-2of5" --seller_comms_enabled --boss_pressure --boss_pressure_fraction 0.4 ; }
+run_F3() { run_condition "frac-3of5" --seller_comms_enabled --boss_pressure --boss_pressure_fraction 0.6 ; }
+run_F4() { run_condition "frac-4of5" --seller_comms_enabled --boss_pressure --boss_pressure_fraction 0.8 ; }
+run_F5() { run_condition "frac-5of5" --seller_comms_enabled --boss_pressure --boss_pressure_fraction 1.0 ; }
 
-# ── DETERRENCE CURVE (zero-cost prompt interventions) ──
+# ══════════════════════════════════════════════════════════════════════
+# PHASE 2 — OVERSIGHT DESIGN
+# All use: comms enabled, full boss_pressure (fraction=1.0)
+# Factorial: detection (messages-only vs price-aware) × punishment (gag vs fine)
+# ══════════════════════════════════════════════════════════════════════
 
-run_D1() { run_condition "deter-vague" --seller_comms_enabled \
-  --seller_prompt_template seller_prompt_cartel.jinja2 --deterrence_level vague ; }
+# O0: Collusion baseline — same as F5 (no oversight)
+run_O0() { run_condition "oversight-baseline" --seller_comms_enabled --boss_pressure ; }
 
-run_D2() { run_condition "deter-moderate" --seller_comms_enabled \
-  --seller_prompt_template seller_prompt_cartel.jinja2 --deterrence_level moderate ; }
+# O1: Messages-only overseer + gag order (original paper design)
+run_O1() { run_condition "msg-gag" --seller_comms_enabled --boss_pressure --oversight_enabled \
+  --overseer_penalty gag ; }
 
-run_D3() { run_condition "deter-severe" --seller_comms_enabled \
-  --seller_prompt_template seller_prompt_cartel.jinja2 --deterrence_level severe ; }
+# O2: Messages-only overseer + fines
+run_O2() { run_condition "msg-fine" --seller_comms_enabled --boss_pressure --oversight_enabled \
+  --overseer_penalty fine ; }
 
-run_D4() { run_condition "deter-prob" --seller_comms_enabled \
-  --seller_prompt_template seller_prompt_cartel.jinja2 --deterrence_level probabilistic ; }
+# O3: Price-aware overseer + gag order
+run_O3() { run_condition "price-gag" --seller_comms_enabled --boss_pressure --oversight_enabled \
+  --overseer_prompt_template message_overseer_prompt_extended.jinja2 --overseer_penalty gag ; }
 
-run_D5() { run_condition "deter-demonstrated" --seller_comms_enabled \
-  --seller_prompt_template seller_prompt_cartel.jinja2 --deterrence_level demonstrated ; }
+# O4: Price-aware overseer + fines
+run_O4() { run_condition "price-fine" --seller_comms_enabled --boss_pressure --oversight_enabled \
+  --overseer_prompt_template message_overseer_prompt_extended.jinja2 --overseer_penalty fine ; }
 
-run_D6() { run_condition "deter-transparency" --seller_comms_enabled \
-  --seller_prompt_template seller_prompt_cartel.jinja2 --deterrence_level transparency ; }
-
-# ── OVERSEER VISIBILITY VARIANTS ──
-
-run_E1() { run_condition "overseer-price-aware" --seller_comms_enabled --oversight_enabled \
-  --overseer_prompt_template message_overseer_prompt_extended.jinja2 ; }
-
-run_E2() { run_condition "overseer-price-only" --oversight_enabled \
-  --overseer_prompt_template message_overseer_prompt_extended.jinja2 ; }
-
-run_E3() { run_condition "overseer-orderbook" --seller_comms_enabled --oversight_enabled \
-  --overseer_prompt_template message_overseer_prompt_extended.jinja2 ; }
-
-# ── COMBINATION ──
-
-run_C1() { run_condition "deter-severe+oversight" --seller_comms_enabled --oversight_enabled \
-  --seller_prompt_template seller_prompt_cartel.jinja2 --deterrence_level severe ; }
+# O5: Price-aware overseer + gag + fines (full combo)
+run_O5() { run_condition "price-both" --seller_comms_enabled --boss_pressure --oversight_enabled \
+  --overseer_prompt_template message_overseer_prompt_extended.jinja2 --overseer_penalty both ; }
 
 # ── Dispatch ──
 
-ALL_CONDITIONS="B1 B2 B3 D1 D2 D3 D4 D5 D6 E1 E2 E3 C1"
-if [[ -n "$CONDITIONS" ]]; then
-  RUN_LIST="$CONDITIONS"
-else
-  RUN_LIST="$ALL_CONDITIONS"
-fi
+PHASE1="F0 F1 F2 F3 F4 F5"
+PHASE2="O0 O1 O2 O3 O4 O5"
+
+case "$PHASE" in
+  1)   RUN_LIST="$PHASE1" ;;
+  2)   RUN_LIST="$PHASE2" ;;
+  all) RUN_LIST="$PHASE1 $PHASE2" ;;
+  *)   echo "Unknown --phase: $PHASE (use 1, 2, or all)"; exit 1 ;;
+esac
+
+n_conditions=$(echo "$RUN_LIST" | wc -w)
+n_seeds=$(echo $SEEDS | wc -w)
+# paper config: 5 sellers + 6 ZIP buyers = 5 LLM calls/round × 30 rounds = 150 calls/run
+# + overseer for Phase 2 oversight conditions = ~180 calls/run
+calls_per_run=150
+est_cost=$(echo "$n_conditions * $calls_per_run * $n_seeds * 0.005" | bc)
 
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   Deterrence Curve Experiment                       ║"
-echo "║   Seeds: $SEEDS                                     "
-echo "║   Conditions: $RUN_LIST                             "
-echo "║   Dry run: $DRY_RUN                                 "
+echo "║   Collusion Restriction Experiment                   ║"
+echo "║   Phase: $PHASE                                      "
+echo "║   Seeds: $SEEDS ($n_seeds)                           "
+echo "║   Conditions: $n_conditions                          "
+echo "║   Estimated cost: ~\$$est_cost                       "
+echo "║   Dry run: $DRY_RUN                                  "
 echo "╚══════════════════════════════════════════════════════╝"
-echo ""
-
-# Cost estimate: paper config = 330 calls/run, 3 seeds = 990 calls/condition
-# gpt-4.1 via OpenRouter ≈ $0.005/call → ~$5/condition, ~$65 for all 13
-n_conditions=$(echo "$RUN_LIST" | wc -w)
-est_cost=$(echo "$n_conditions * 990 * 0.005" | bc)
-echo "Estimated cost: ~\$$est_cost for $n_conditions conditions × $(echo $SEEDS | wc -w) seeds"
 echo ""
 
 for cond in $RUN_LIST; do
   run_"$cond"
 done
 
-echo "All conditions complete. Run analyze_deterrence.py on the results/ directory."
+echo "All conditions complete. Run: python analyze_deterrence.py results/"

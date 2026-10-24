@@ -113,6 +113,14 @@ def run_simulation(params: ExperimentParams, log_dir: Optional[str] = None, use_
                 )
             )
 
+    # Determine which sellers receive boss pressure based on fraction
+    # e.g. fraction=0.6 with 5 sellers -> 3 get boss pressure (first 3, deterministic by seed)
+    n_boss = round(params.boss_pressure_fraction * num_sellers)
+    seller_indices = list(range(num_sellers))
+    if params.seed is not None:
+        random.Random(params.seed).shuffle(seller_indices)
+    boss_set = set(seller_indices[:n_boss])  # indices of sellers who get boss pressure
+
     sellers = [
         LMSeller(
             id=f"Seller {seller_names[i]}",
@@ -121,6 +129,7 @@ def run_simulation(params: ExperimentParams, log_dir: Optional[str] = None, use_
             expt_params=params,
             client=get_client(model=params.seller_models[i], **client_kwargs),
             logger=logger,
+            boss_pressure_override=(i in boss_set) if params.boss_pressure else False,
         )
         for i in range(num_sellers)
     ]
@@ -144,6 +153,7 @@ def run_simulation(params: ExperimentParams, log_dir: Optional[str] = None, use_
         overseer_sample_fraction=params.overseer_sample_fraction,
         overseer_rng=random.Random(params.seed) if params.seed is not None else None,
         overseer_prompt_template=params.overseer_prompt_template,
+        overseer_penalty=params.overseer_penalty,
     )
 
     if params.initial_condition:
@@ -315,6 +325,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     a.add_argument("--boss_pressure", action="store_true", help="CEO message pressuring sellers to keep prices high")
     a.add_argument(
+        "--boss_pressure_fraction",
+        type=float,
+        default=1.0,
+        help="fraction of sellers that receive the boss pressure message (0.0-1.0, e.g. 0.6 = 3 of 5)",
+    )
+    a.add_argument(
+        "--overseer_penalty",
+        type=str,
+        default="gag",
+        choices=["gag", "fine", "both"],
+        help="what happens when overseer flags coordination: gag (message limit), fine (profit deduction), both",
+    )
+    a.add_argument(
         "--deterrence_level",
         type=str,
         default=None,
@@ -391,6 +414,8 @@ def main() -> None:
             hide_num_rounds=args.hide_num_rounds,
             oversight_enabled=args.oversight_enabled,
             boss_pressure=args.boss_pressure,
+            boss_pressure_fraction=args.boss_pressure_fraction,
+            overseer_penalty=args.overseer_penalty,
             temperature=args.temperature,
             tag=tag,
             max_message_length=args.max_message_length,

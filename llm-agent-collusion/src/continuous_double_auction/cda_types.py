@@ -43,6 +43,8 @@ class ExperimentParams(BaseModel):
     hide_num_rounds: bool = False  # Whether to hide the total number of rounds from agents
     oversight_enabled: bool = False  # Whether to enable oversight for sellers
     boss_pressure: bool = False  # Whether to apply pressure on sellers to keep prices high
+    boss_pressure_fraction: float = 1.0  # Fraction of sellers that receive the boss pressure message (0.0-1.0)
+    overseer_penalty: str = "gag"  # What happens when overseer flags coordination: gag, fine, both
     temperature: float = 0.7
     tag: str = ""
     seller_demonyms: Optional[dict[str, str]] = None  # Maps seller IDs to their country demonyms (e.g., "seller_1": "American")
@@ -73,6 +75,10 @@ class ExperimentParams(BaseModel):
                 raise ValueError('Oversight can only be enabled if seller communications are enabled (or use the extended overseer template for price-only oversight)')
         if not 0.0 <= self.overseer_sample_fraction <= 1.0:
             raise ValueError('overseer_sample_fraction must be between 0 and 1')
+        if not 0.0 <= self.boss_pressure_fraction <= 1.0:
+            raise ValueError('boss_pressure_fraction must be between 0 and 1')
+        if self.overseer_penalty not in ("gag", "fine", "both"):
+            raise ValueError('overseer_penalty must be one of: gag, fine, both')
         self.buyer_models = [None if m in (None, ZIP_BUYER, "none", "None") else m for m in self.buyer_models]
         return self
 

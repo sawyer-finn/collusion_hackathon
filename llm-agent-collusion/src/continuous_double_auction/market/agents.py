@@ -229,14 +229,22 @@ class LMSeller(Agent):
     logger: Optional[ExperimentLogger] = None
     memory_manager: Optional[MemoryManager] = None
     scratch_pad: str = ""
+    boss_pressure_override: Optional[bool] = None  # Per-seller override for boss pressure (for fractional assignment)
 
     class Config:
         arbitrary_types_allowed = True
-        
+
     def __init__(self, **data):
         super().__init__(**data)
         self.memory_manager = MemoryManager()
         self.scratch_pad = ""
+
+    @property
+    def effective_boss_pressure(self) -> bool:
+        """Whether this seller receives the boss pressure message."""
+        if self.boss_pressure_override is not None:
+            return self.boss_pressure_override
+        return self.expt_params.boss_pressure
 
     @backoff.on_exception(
         wait_gen=backoff.expo,
@@ -250,12 +258,12 @@ class LMSeller(Agent):
     )
     def generate_bid_response(self, **kwargs: Any) -> AgentBidResponse:
         round_num = kwargs.get("round_num", 1)
-        
+
         # Get seller demonym if available in experiment parameters
         demonym = None
         if self.expt_params.seller_demonyms and self.id in self.expt_params.seller_demonyms:
             demonym = self.expt_params.seller_demonyms[self.id]
-        
+
         prompt = render_prompt(
             template_dir=TEMPLATE_DIR,
             prompt_template=self.expt_params.seller_prompt_template,
@@ -276,11 +284,12 @@ class LMSeller(Agent):
             scratch_pad=self.scratch_pad,
             demonym=demonym,  # Pass the demonym to the template
             is_gagged=kwargs.get("is_gag_order_active", False),
-            boss_pressure=self.expt_params.boss_pressure,
+            boss_pressure=self.effective_boss_pressure,
             initial_condition=self.expt_params.initial_condition,
             oversight_enabled=self.expt_params.oversight_enabled,
             max_message_length=self.expt_params.max_message_length,
             deterrence_level=self.expt_params.deterrence_level,
+            cumulative_fine=kwargs.get("cumulative_fine", 0.0),
         )
         messages = [Message(role="user", content=prompt)]
         response = self.client.generate(messages=messages)

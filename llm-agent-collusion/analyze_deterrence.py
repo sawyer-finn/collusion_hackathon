@@ -18,6 +18,7 @@ Usage:
 
 import argparse
 import json
+import random
 import re
 import sys
 from collections import defaultdict
@@ -79,6 +80,39 @@ def extract_tag_from_dirname(dirname: str) -> str:
     return tag
 
 
+def reconstruct_boss_set(metadata: dict) -> list[str]:
+    """Reconstruct which sellers had boss pressure from experiment metadata.
+
+    Works with both new metadata (has boss_pressure_sellers) and old metadata
+    (reconstruct from seed + boss_pressure_fraction + seller_ids).
+    """
+    # New format: already logged
+    if "boss_pressure_sellers" in metadata:
+        return metadata["boss_pressure_sellers"]
+
+    # Old format: reconstruct from seed
+    seller_ids = metadata.get("seller_ids", [])
+    config = metadata.get("auction_config", metadata)
+
+    boss_pressure = config.get("boss_pressure", False)
+    if not boss_pressure:
+        return []
+
+    fraction = config.get("boss_pressure_fraction", 1.0)
+    seed = config.get("seed")
+    num_sellers = len(seller_ids)
+    if num_sellers == 0:
+        return []
+
+    n_boss = round(fraction * num_sellers)
+    indices = list(range(num_sellers))
+    if seed is not None:
+        random.Random(seed).shuffle(indices)
+    boss_indices = set(indices[:n_boss])
+
+    return [seller_ids[i] for i in range(num_sellers) if i in boss_indices]
+
+
 def load_metrics(results_dir: Path) -> dict[str, list[dict[str, Any]]]:
     """Load collusion_metrics.json from all subdirectories, grouped by condition tag."""
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -98,6 +132,16 @@ def load_metrics(results_dir: Path) -> dict[str, list[dict[str, Any]]]:
             with open(metrics_file) as f:
                 data = json.load(f)
             data["_source_dir"] = str(subdir)
+
+            # Load metadata and reconstruct boss pressure assignment
+            metadata_file = subdir / "experiment_metadata.json"
+            if metadata_file.exists():
+                with open(metadata_file) as f:
+                    metadata = json.load(f)
+                data["_metadata"] = metadata
+                data["_boss_pressure_sellers"] = reconstruct_boss_set(metadata)
+                data["_seller_ids"] = metadata.get("seller_ids", [])
+
             grouped[tag].append(data)
         except (json.JSONDecodeError, OSError) as e:
             print(f"  Warning: could not read {metrics_file}: {e}", file=sys.stderr)
@@ -155,16 +199,42 @@ def compute_summary(metrics_list: list[dict]) -> dict[str, Any]:
     if last5_prices:
         result["last5_price_mean"] = float(np.mean(last5_prices))
 
+    # Per-group profit breakdown: pressured vs non-pressured sellers
+    boss_profits_all = []
+    rogue_profits_all = []
+    for m in metrics_list:
+        boss_sellers = set(m.get("_boss_pressure_sellers", []))
+        seller_ids = m.get("_seller_ids", [])
+        profits = m.get("total_seller_profits", {})
+        if not boss_sellers or not seller_ids or not profits:
+            continue
+        # Map seller_ids to standardized keys (seller_1, seller_2, ...)
+        sorted_ids = sorted(seller_ids)
+        for idx, sid in enumerate(sorted_ids):
+            key = f"seller_{idx + 1}"
+            profit = profits.get(key)
+            if profit is None:
+                continue
+            if sid in boss_sellers:
+                boss_profits_all.append(profit)
+            else:
+                rogue_profits_all.append(profit)
+
+    if boss_profits_all:
+        result["boss_profit_mean"] = float(np.mean(boss_profits_all))
+    if rogue_profits_all:
+        result["rogue_profit_mean"] = float(np.mean(rogue_profits_all))
+
     return result
 
 
 def print_table(summaries: dict[str, dict], title: str, order: list[str]):
     """Print a formatted console table for one phase."""
-    print(f"\n{'=' * 90}")
+    print(f"\n{'=' * 110}")
     print(f"  {title}")
-    print(f"{'=' * 90}")
-    print(f"{'Condition':<25} {'N':>3} {'Avg Price':>10} {'CI Mean':>10} {'CI SEM':>8} {'Gag%':>6} {'Last5 $':>9}")
-    print("-" * 90)
+    print(f"{'=' * 110}")
+    print(f"{'Condition':<25} {'N':>3} {'Avg Price':>10} {'CI Mean':>10} {'CI SEM':>8} {'Gag%':>6} {'Last5 $':>9} {'Boss π':>9} {'Rogue π':>9}")
+    print("-" * 110)
 
     for cond in order:
         if cond not in summaries:
@@ -176,9 +246,13 @@ def print_table(summaries: dict[str, dict], title: str, order: list[str]):
         ci_sem = s.get("collusion_index_sem", float("nan"))
         gag = s.get("gag_rate", 0) * 100
         l5 = s.get("last5_price_mean", float("nan"))
-        print(f"{cond:<25} {n:>3} {ap:>10.2f} {ci:>10.3f} {ci_sem:>8.3f} {gag:>5.0f}% ${l5:>8.2f}")
+        bp = s.get("boss_profit_mean", float("nan"))
+        rp = s.get("rogue_profit_mean", float("nan"))
+        bp_str = f"${bp:>8.2f}" if not np.isnan(bp) else f"{'—':>9}"
+        rp_str = f"${rp:>8.2f}" if not np.isnan(rp) else f"{'—':>9}"
+        print(f"{cond:<25} {n:>3} {ap:>10.2f} {ci:>10.3f} {ci_sem:>8.3f} {gag:>5.0f}% ${l5:>8.2f} {bp_str} {rp_str}")
 
-    print("=" * 90)
+    print("=" * 110)
 
 
 def write_csv(summaries: dict[str, dict], output_path: Path):
@@ -186,7 +260,8 @@ def write_csv(summaries: dict[str, dict], output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
         f.write("phase,condition,n_runs,avg_price_mean,avg_price_std,collusion_index_mean,"
-                "collusion_index_std,collusion_index_sem,gag_rate,last5_price_mean\n")
+                "collusion_index_std,collusion_index_sem,gag_rate,last5_price_mean,"
+                "boss_profit_mean,rogue_profit_mean\n")
         for phase_name, order in [("fragmentation", PHASE1_ORDER), ("oversight", PHASE2_ORDER)]:
             for cond in order:
                 if cond not in summaries:
@@ -196,7 +271,8 @@ def write_csv(summaries: dict[str, dict], output_path: Path):
                         f"{s.get('avg_price_mean', '')},{s.get('avg_price_std', '')},"
                         f"{s.get('collusion_index_mean', '')},{s.get('collusion_index_std', '')},"
                         f"{s.get('collusion_index_sem', '')},{s.get('gag_rate', '')},"
-                        f"{s.get('last5_price_mean', '')}\n")
+                        f"{s.get('last5_price_mean', '')},"
+                        f"{s.get('boss_profit_mean', '')},{s.get('rogue_profit_mean', '')}\n")
     print(f"\nCSV written to {output_path}")
 
 

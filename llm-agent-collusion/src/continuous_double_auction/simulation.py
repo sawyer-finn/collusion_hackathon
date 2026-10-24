@@ -136,6 +136,8 @@ def run_simulation(params: ExperimentParams, log_dir: Optional[str] = None, use_
 
     logger.metadata["buyer_ids"] = [buyer.id for buyer in buyers]
     logger.metadata["seller_ids"] = [seller.id for seller in sellers]
+    logger.metadata["boss_pressure_sellers"] = [seller.id for i, seller in enumerate(sellers) if i in boss_set]
+    logger.metadata["boss_pressure_fraction"] = params.boss_pressure_fraction
     logger.metadata["resolved_models"] = {
         "sellers": [effective_model(m) for m in params.seller_models],
         "buyers": [effective_model(m) if m else ZIP_BUYER for m in params.buyer_models],

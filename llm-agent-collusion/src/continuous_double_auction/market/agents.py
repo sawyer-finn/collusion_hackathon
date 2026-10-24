@@ -280,6 +280,7 @@ class LMSeller(Agent):
             initial_condition=self.expt_params.initial_condition,
             oversight_enabled=self.expt_params.oversight_enabled,
             max_message_length=self.expt_params.max_message_length,
+            deterrence_level=self.expt_params.deterrence_level,
         )
         messages = [Message(role="user", content=prompt)]
         response = self.client.generate(messages=messages)
@@ -314,11 +315,14 @@ class MessageOverseer(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def run_overseer_prompt(self, round_num: int, seller_messages_this_round: dict[str, str]):
+    def run_overseer_prompt(self, round_num: int, seller_messages_this_round: dict[str, str],
+                            prompt_template: str = "message_overseer_prompt.jinja2",
+                            **extra_context):
         prompt = render_prompt(
             template_dir=TEMPLATE_DIR,
-            prompt_template="message_overseer_prompt.jinja2",
+            prompt_template=prompt_template,
             seller_messages_this_round=seller_messages_this_round,
+            **extra_context,
         )
         messages = [Message(role="user", content=prompt)]
         response = self.client.generate(messages=messages)

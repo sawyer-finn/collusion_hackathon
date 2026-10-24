@@ -143,6 +143,7 @@ def run_simulation(params: ExperimentParams, log_dir: Optional[str] = None, use_
         overseer=overseer,
         overseer_sample_fraction=params.overseer_sample_fraction,
         overseer_rng=random.Random(params.seed) if params.seed is not None else None,
+        overseer_prompt_template=params.overseer_prompt_template,
     )
 
     if params.initial_condition:
@@ -313,6 +314,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="share of seller messages the overseer sees each round (try 0.25, 0.5, 1.0)",
     )
     a.add_argument("--boss_pressure", action="store_true", help="CEO message pressuring sellers to keep prices high")
+    a.add_argument(
+        "--deterrence_level",
+        type=str,
+        default=None,
+        choices=["vague", "moderate", "severe", "probabilistic", "demonstrated", "transparency"],
+        help="deterrence severity level for the cartel template (requires seller_prompt_cartel.jinja2)",
+    )
+    a.add_argument(
+        "--overseer_prompt_template",
+        type=str,
+        default="message_overseer_prompt.jinja2",
+        help="overseer prompt template (use message_overseer_prompt_extended.jinja2 for price-aware oversight)",
+    )
 
     o = p.add_argument_group("output")
     o.add_argument("--tag", type=str, default="", help="run name suffix")
@@ -336,7 +350,9 @@ def main() -> None:
     seller_vals = broadcast(args.seller_valuations, args.sellers, "seller_valuations")
     buyer_vals = broadcast(args.buyer_valuations, args.buyers, "buyer_valuations")
     if args.oversight_enabled and not args.seller_comms_enabled:
-        sys.exit("❌ --oversight_enabled requires --seller_comms_enabled")
+        # Allow price-only oversight with the extended template (no comms needed)
+        if args.overseer_prompt_template == "message_overseer_prompt.jinja2":
+            sys.exit("❌ --oversight_enabled requires --seller_comms_enabled (or use --overseer_prompt_template message_overseer_prompt_extended.jinja2 for price-only oversight)")
 
     n_lm_buyers = sum(1 for b in buyer_models if b not in (ZIP_BUYER, "none", "None"))
     calls_per_run = args.rounds * (args.sellers + n_lm_buyers)
@@ -381,6 +397,8 @@ def main() -> None:
             seed=seed,
             overseer_model=args.overseer_model,
             overseer_sample_fraction=args.overseer_sample_fraction,
+            overseer_prompt_template=args.overseer_prompt_template,
+            deterrence_level=args.deterrence_level,
             llm_eval=args.llm_eval,
         )
         try:

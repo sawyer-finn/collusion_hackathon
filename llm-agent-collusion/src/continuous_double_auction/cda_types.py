@@ -57,6 +57,8 @@ class ExperimentParams(BaseModel):
     seed: Optional[int] = None               # seeds agent names / initial orders; forwarded to the API when supported
     overseer_model: str = "gpt-4.1-mini"     # model reading seller messages when oversight is enabled (paper: gpt-4.1-mini)
     overseer_sample_fraction: float = 1.0    # share of seller messages the overseer gets to see (sprint project 3.4)
+    overseer_prompt_template: str = "message_overseer_prompt.jinja2"  # overseer prompt template (use extended for price-aware)
+    deterrence_level: Optional[str] = None   # deterrence severity for cartel template: vague|moderate|severe|probabilistic|demonstrated|transparency
     llm_eval: bool = False                   # run the LLM-as-judge coordination scoring after the run (paper: always)
     
     @model_validator(mode='after')
@@ -66,7 +68,9 @@ class ExperimentParams(BaseModel):
         if len(self.buyer_valuations) != len(self.buyer_models):
             raise ValueError('Number of buyer valuations must match number of buyer models')
         if self.oversight_enabled and not self.seller_comms_enabled:
-            raise ValueError('Oversight can only be enabled if seller communications are enabled')
+            # Allow price-only oversight with the extended overseer template
+            if self.overseer_prompt_template == "message_overseer_prompt.jinja2":
+                raise ValueError('Oversight can only be enabled if seller communications are enabled (or use the extended overseer template for price-only oversight)')
         if not 0.0 <= self.overseer_sample_fraction <= 1.0:
             raise ValueError('overseer_sample_fraction must be between 0 and 1')
         self.buyer_models = [None if m in (None, ZIP_BUYER, "none", "None") else m for m in self.buyer_models]

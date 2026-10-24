@@ -319,6 +319,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="an overseer model reads seller messages; score 4/4 gags all sellers",
     )
+    a.add_argument(
+        "--oversight_threat",
+        action="store_true",
+        help="show oversight warning in seller prompt without actually running the overseer (ex-post threat only)",
+    )
     a.add_argument("--overseer_model", type=str, default="gpt-4.1-mini", help="paper: gpt-4.1-mini")
     a.add_argument(
         "--overseer_sample_fraction",
@@ -417,6 +422,7 @@ def main() -> None:
             buyer_comms_enabled=args.buyer_comms_enabled,
             hide_num_rounds=args.hide_num_rounds,
             oversight_enabled=args.oversight_enabled,
+            oversight_threat=args.oversight_threat,
             boss_pressure=args.boss_pressure,
             boss_pressure_fraction=args.boss_pressure_fraction,
             overseer_penalty=args.overseer_penalty,

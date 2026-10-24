@@ -42,6 +42,7 @@ class ExperimentParams(BaseModel):
     buyer_comms_enabled: bool = False
     hide_num_rounds: bool = False  # Whether to hide the total number of rounds from agents
     oversight_enabled: bool = False  # Whether to enable oversight for sellers
+    oversight_threat: bool = False  # Show oversight warning in prompt without actually running the overseer
     boss_pressure: bool = False  # Whether to apply pressure on sellers to keep prices high
     boss_pressure_fraction: float = 1.0  # Fraction of sellers that receive the boss pressure message (0.0-1.0)
     overseer_penalty: str = "gag"  # What happens when overseer flags coordination: gag, fine, both

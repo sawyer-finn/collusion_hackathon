@@ -46,6 +46,7 @@ class ExperimentParams(BaseModel):
     boss_pressure: bool = False  # Whether to apply pressure on sellers to keep prices high
     boss_pressure_fraction: float = 1.0  # Fraction of sellers that receive the boss pressure message (0.0-1.0)
     overseer_penalty: str = "gag"  # What happens when overseer flags coordination: gag, fine, both
+    dark_book: bool = False  # If True, sellers cannot see the ask queue or other sellers' past asks
     split_comms: bool = False  # If True, pressured and non-pressured sellers have separate message channels
     temperature: float = 0.7
     tag: str = ""

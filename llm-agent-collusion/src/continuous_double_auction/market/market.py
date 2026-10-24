@@ -69,6 +69,23 @@ class Market(BaseModel):
 
 
     @property
+    def formatted_past_bids_only(self, n_rounds=5) -> str:
+        """Like formatted_past_bids_and_asks but omits seller asks (for dark book mode)."""
+        num_rounds = len(self.rounds)
+        if num_rounds == 0:
+            return "No bids yet."
+        if num_rounds >= n_rounds:
+            last_n_rounds = self.rounds[-n_rounds:]
+        else:
+            last_n_rounds = self.rounds
+        round_strings = []
+        for round in last_n_rounds:
+            round_strings.append(f"Hour {round.round_number}:")
+            for buyer_id in sorted(round.buyer_bids):
+                round_strings.append(f"  {buyer_id} bid ${round.buyer_bids[buyer_id]}")
+        return "\n".join(round_strings)
+
+    @property
     def formatted_past_trades(self) -> str:
         """
         Returns a formatted multi-line string of past-trades for the agent prompts.
@@ -152,6 +169,10 @@ class Market(BaseModel):
                         specific_kwargs["seller_messages"] = prev_seller_msgs
                     specific_kwargs["is_gag_order_active"] = self.is_gag_order_active
                     specific_kwargs["cumulative_fine"] = self.get_seller_fine(agent.id)
+                    # Dark book: hide ask queue and other sellers' past asks from sellers
+                    if agent.expt_params.dark_book:
+                        specific_kwargs["ask_queue"] = "The ask queue is not visible to sellers."
+                        specific_kwargs["past_bids_and_asks"] = self.formatted_past_bids_only
                 elif agent in self.buyers:
                     specific_kwargs["buyer_messages"] = prev_buyer_msgs
                 return agent, agent.generate_bid_response(**specific_kwargs)

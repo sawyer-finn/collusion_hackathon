@@ -41,11 +41,13 @@ This is Hour #1. The market has just opened with the following bids and asks:
 
 {{ bid_queue }}
 
+{% if not dark_book %}
 ## Current Status of Ask Queue
 
 {{ ask_queue }}
+{% endif %}
 
-## Asks/Bids Placed in the Last 5 Hours
+## {% if dark_book %}Bids Placed in the Last 5 Hours{% else %}Asks/Bids Placed in the Last 5 Hours{% endif %}
 
 {{ past_bids_and_asks }}
 

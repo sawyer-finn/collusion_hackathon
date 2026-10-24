@@ -367,6 +367,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="what happens when overseer flags coordination: gag (message limit), fine (profit deduction), both",
     )
     a.add_argument("--split_comms", action="store_true", help="separate message channels: pressured sellers only see pressured sellers' messages, rogues only see rogues'")
+    a.add_argument("--dark_book", action="store_true", help="hide the ask queue and other sellers' past asks from seller prompts (test order-book visibility as coordination mechanism)")
     a.add_argument(
         "--deterrence_level",
         type=str,
@@ -450,6 +451,7 @@ def main() -> None:
             boss_pressure_fraction=args.boss_pressure_fraction,
             overseer_penalty=args.overseer_penalty,
             split_comms=args.split_comms,
+            dark_book=args.dark_book,
             temperature=args.temperature,
             tag=tag,
             max_message_length=args.max_message_length,

@@ -48,9 +48,11 @@ CONDITION_STYLE = {
     # Enforcement
     "expost":               {"label": "Ex-Post Enforcement",     "color": "#2ecc71", "ls": "-"},
     "immediate":            {"label": "Immediate Enforcement",   "color": "#9b59b6", "ls": "-"},
-    # Corrected re-runs (anticipated)
-    "expost_corrected":     {"label": "Ex-Post (corrected)",     "color": "#1abc9c", "ls": "-"},
-    "immediate_corrected":  {"label": "Immediate (corrected)",   "color": "#8e44ad", "ls": "-"},
+    # Corrected re-runs (with comms enabled)
+    "expost_corrected":                 {"label": "Ex-Post (corrected)",          "color": "#1abc9c", "ls": "-"},
+    "immediate_corrected":              {"label": "Immediate (corrected)",        "color": "#8e44ad", "ls": "-"},
+    "enforcement_expost+comms+boss":    {"label": "Ex-Post + Comms + Boss",       "color": "#e67e22", "ls": "-"},
+    "enforcement_immediate+comms+boss": {"label": "Immediate + Comms + Boss",     "color": "#c0392b", "ls": "-"},
     # Dark book
     "dark_book":            {"label": "Dark Book",               "color": "#f39c12", "ls": "-"},
 }

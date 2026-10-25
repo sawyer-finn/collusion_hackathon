@@ -23,7 +23,6 @@
 # All conditions: 5 sellers, 5 buyers, 15 rounds, gpt-4.1, comms enabled
 #
 # Usage:
-#   source ../compute.env   # sets OPENROUTER_API_KEY
 #   bash run_new_experiments.sh [--dry-run] [--seeds "0 1 2 3 4"] [--group 1|2|3|all]
 # ──────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -40,12 +39,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
-  echo "Error: OPENROUTER_API_KEY not set. Run: source ../compute.env" >&2
-  exit 1
-fi
-
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+# Auto-source compute.env from the parent directory (collusion_hackathon/)
+if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
+  ENV_FILE="$REPO_ROOT/../compute.env"
+  if [[ -f "$ENV_FILE" ]]; then
+    echo "Sourcing $ENV_FILE ..."
+    source "$ENV_FILE"
+  else
+    echo "Error: OPENROUTER_API_KEY not set and $ENV_FILE not found." >&2
+    exit 1
+  fi
+fi
 SIM="uv run python $REPO_ROOT/src/continuous_double_auction/simulation.py"
 COMMON="--sellers 5 --buyers 5 --rounds 15 --seller_comms_enabled -y"
 

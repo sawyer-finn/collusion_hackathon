@@ -13,7 +13,8 @@ import sys
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("Agg")
+if not hasattr(sys, "ps1") and "IPython" not in sys.modules:
+    matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np

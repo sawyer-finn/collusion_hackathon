@@ -38,7 +38,15 @@ CONDITION_STYLE = {
     "immediate_corrected":              {"label": "Immediate (corrected)",        "color": "#8e44ad", "ls": "-"},
     "enforcement_expost+comms+boss":    {"label": "Ex-Post + Comms + Boss",       "color": "#e67e22", "ls": "-"},
     "enforcement_immediate+comms+boss": {"label": "Immediate + Comms + Boss",     "color": "#c0392b", "ls": "-"},
+    # Threshold 3 (stricter overseer)
+    "comms+boss+thresh3":                        {"label": "Control (thresh 3)",              "color": "#7f8c8d", "ls": "--"},
+    "enforcement_expost+comms+boss+thresh3":     {"label": "Ex-Post + Comms (thresh 3)",      "color": "#16a085", "ls": "-."},
+    "enforcement_immediate+comms+boss+thresh3":  {"label": "Immediate + Comms (thresh 3)",    "color": "#d35400", "ls": "-."},
+    # Dark book
     "dark_book":            {"label": "Dark Book",               "color": "#f39c12", "ls": "-"},
+    "dark_book_comms":      {"label": "Dark Book + Comms",       "color": "#f1c40f", "ls": "-"},
+    "dark_book_no_comms":   {"label": "Dark Book (no comms)",    "color": "#d4ac0d", "ls": "-"},
+    "dark_book_partial_boss": {"label": "Dark Book (partial boss)", "color": "#b7950b", "ls": "--"},
 }
 
 def _style(cond):

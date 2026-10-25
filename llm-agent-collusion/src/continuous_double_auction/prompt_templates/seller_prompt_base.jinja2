@@ -42,12 +42,12 @@ This is Hour #1. The market has just opened with the following bids and asks:
 {{ bid_queue }}
 
 {% if not dark_book %}
-## Current Status of Ask Queue
+## {% if partial_transparency %}Aggregate Ask Price Information{% elif sequential_asks %}Previous Hour's Ask Queue{% else %}Current Status of Ask Queue{% endif %}
 
 {{ ask_queue }}
 {% endif %}
 
-## {% if dark_book %}Bids Placed in the Last 5 Hours{% else %}Asks/Bids Placed in the Last 5 Hours{% endif %}
+## {% if dark_book or partial_transparency or sequential_asks %}Bids Placed in the Last 5 Hours{% else %}Asks/Bids Placed in the Last 5 Hours{% endif %}
 
 {{ past_bids_and_asks }}
 

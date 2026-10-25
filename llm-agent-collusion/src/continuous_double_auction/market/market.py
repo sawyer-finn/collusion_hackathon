@@ -175,6 +175,23 @@ class Market(BaseModel):
                     if agent.expt_params.dark_book:
                         specific_kwargs["ask_queue"] = "The ask queue is not visible to sellers."
                         specific_kwargs["past_bids_and_asks"] = self.formatted_past_bids_only
+                    # Partial transparency: show only mean ask price
+                    elif agent.expt_params.partial_transparency:
+                        asks = [price for price, _ in ask_snapshot]
+                        if asks:
+                            mean_ask = sum(asks) / len(asks)
+                            specific_kwargs["ask_queue"] = f"The mean ask price across all sellers is ${mean_ask:.2f}. Individual asks are not visible."
+                        else:
+                            specific_kwargs["ask_queue"] = "No asks have been placed yet."
+                        specific_kwargs["past_bids_and_asks"] = self.formatted_past_bids_only
+                    # Sequential asks: show previous round's asks instead of current
+                    elif agent.expt_params.sequential_asks:
+                        if self.rounds:
+                            prev_round = self.rounds[-1]
+                            prev_asks_lines = [f"  {sid} ask ${price}" for sid, price in sorted(prev_round.seller_asks.items())]
+                            specific_kwargs["ask_queue"] = f"Asks from the previous hour (Hour {prev_round.round_number}):\n" + "\n".join(prev_asks_lines) if prev_asks_lines else "No asks were placed last hour."
+                        else:
+                            specific_kwargs["ask_queue"] = "No previous hour data available (this is Hour 1)."
                 elif agent in self.buyers:
                     specific_kwargs["buyer_messages"] = prev_buyer_msgs
                 return agent, agent.generate_bid_response(**specific_kwargs)

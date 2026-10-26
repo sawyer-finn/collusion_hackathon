@@ -38,37 +38,47 @@ def fig1():
         ("Message cap (5 chars)", "c2_msgcap", "comm"),
         ("Overseer + gag", "c3_overseer", "comm"),
         ("No messaging", "c1_nomsg", "comm"),
+        ("Ex-post fines, threshold 4", "expost_corrected", "comm"),
+        ("Immediate fines, threshold 4", "immediate_corrected", "comm"),
+        ("Ex-post fines, threshold 1", "expost_thresh1_boss", "comm"),
+        ("Immediate fines, threshold 1", "immediate_thresh1_boss", "comm"),
+        ("Partial transparency", "partial_transparency_boss", "info"),
+        ("Dark book", "dark_book_comms", "info"),
+        ("Sequential asks", "sequential_asks_boss", "info"),
         ("No-regret entrant x1", "c9_noregret1", "entrant"),
         ("Random entrant x1", "c8_random", "entrant"),
         ("Random entrant x2", "c8b_random2", "entrant"),
         ("No-regret + random", "c11_mixed", "entrant"),
         ("No-regret entrant x2", "c10_noregret2", "entrant"),
     ]
+    style = {"comm": (BLUE, "o"), "info": (AQUA, "D"), "entrant": (ORANGE, "s")}
     rows = [(lab, fam, *paired("control41", tag)) for lab, tag, fam in levers]
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(8.2, 3.9), sharey=True,
-                                 gridspec_kw={"width_ratios": [1.3, 1], "wspace": 0.08})
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(8.6, 5.6), sharey=True,
+                                 gridspec_kw={"width_ratios": [1.4, 1], "wspace": 0.08})
     for i, (lab, fam, p, (plo, phi), l, (llo, lhi), n) in enumerate(rows):
-        col, mk = (BLUE, "o") if fam == "comm" else (ORANGE, "s")
+        col, mk = style[fam]
         a1.plot([plo, phi], [i, i], color=col, lw=2, solid_capstyle="round")
-        a1.plot(p, i, mk, color=col, ms=8, mec=SURFACE, mew=2)
-        a1.text(178, i, f"{p:.0f}%  n={n}", va="center", ha="right", fontsize=8.5, color=INK2)
+        a1.plot(p, i, mk, color=col, ms=7, mec=SURFACE, mew=2)
+        a1.text(292, i, f"{p:.0f}%  n={n}", va="center", ha="right", fontsize=8, color=INK2)
         a2.plot([llo, lhi], [i, i], color=col, lw=2, solid_capstyle="round")
-        a2.plot(l, i, mk, color=col, ms=8, mec=SURFACE, mew=2)
+        a2.plot(l, i, mk, color=col, ms=7, mec=SURFACE, mew=2)
     a1.set_yticks(range(len(rows)), [r[0] for r in rows])
+    a1.invert_yaxis()
     a1.axvline(0, color=INK2, lw=1)
     a1.axvline(50, color=INK2, lw=1, ls=(0, (3, 3)))
-    a1.text(51, len(rows) - 0.4, "50%", fontsize=8, color=INK2)
-    a1.set_xlim(-10, 180)
-    a1.set_xticks([0, 25, 50, 75, 100, 125])
+    a1.text(51, -0.6, "50%", fontsize=8, color=INK2)
+    a1.set_xlim(-10, 295)
+    a1.set_xticks([0, 50, 100, 150, 200])
     a1.set_xlabel("Collusion removed, % of control (95% CI)")
     a2.axvline(0, color=INK2, lw=1)
     a2.set_xlabel("Lost trades per run vs. control (95% CI)")
     for a in (a1, a2):
         a.grid(axis="x", color=GRID, lw=0.8)
         a.set_axisbelow(True)
-    a1.plot([], [], "o", color=BLUE, ms=8, label="Communication / agent levers")
-    a1.plot([], [], "s", color=ORANGE, ms=8, label="Independent entrants")
-    fig.legend(loc="upper center", ncol=2, frameon=False, bbox_to_anchor=(0.55, 1.02))
+    a1.plot([], [], "o", color=BLUE, ms=7, label="Restrict or police speech")
+    a1.plot([], [], "D", color=AQUA, ms=7, label="Restrict what sellers see")
+    a1.plot([], [], "s", color=ORANGE, ms=7, label="Independent entrants")
+    fig.legend(loc="upper center", ncol=3, frameon=False, bbox_to_anchor=(0.55, 1.01))
     fig.savefig(RESULTS / "fig1_levers.png", dpi=200, bbox_inches="tight")
 
 

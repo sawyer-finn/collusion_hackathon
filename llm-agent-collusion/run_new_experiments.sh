@@ -115,7 +115,7 @@ case "$GROUP" in
   2)   RUN_LIST="$GROUP2" ;;
   3)   RUN_LIST="$GROUP3" ;;
   4)   RUN_LIST="$GROUP4" ;;
-  all) RUN_LIST="$GROUP1 $GROUP2 $GROUP3 $GROUP4" ;;
+  all) RUN_LIST="$GROUP1 $GROUP2 $GROUP3" ;;  # dark_book_comms already matches the control; group 4 is optional
   *)   echo "Unknown --group: $GROUP (use 1, 2, 3, 4, or all)"; exit 1 ;;
 esac
 

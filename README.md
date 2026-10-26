@@ -1,5 +1,11 @@
 # Hackathon NY starter repo
 
+> **This fork:** Thomas Huck ([@sawyer-finn](https://github.com/sawyer-finn)) and Varad Gunjal
+> ([@varadgunjal](https://github.com/varadgunjal)) extended [`llm-agent-collusion/`](llm-agent-collusion/) during the
+> Apart Research AI Collusion Research Sprint (October 2026): Varad built the independent entrant sellers and the
+> shared analysis pipeline, and Thomas built the enforcement and information-restriction remedies. See
+> [Sprint team and contributions](llm-agent-collusion/README.md#sprint-team-and-contributions) for who wrote what.
+
 Ten research codebases on LLM agents, collusion and multi-agent coordination, bundled so a
 team can clone once and start hacking. Every project runs on a normal laptop with **no GPU**,
 calling models **through a hosted inference provider** (Nebius or OpenRouter), configured once at the repo root. Some have other local

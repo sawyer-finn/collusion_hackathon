@@ -15,6 +15,54 @@ collusion at the least cost), and **3.4** (what a coalition does when it is only
 watched). The defaults are the brief's cheap starting point (**3 sellers, 3 buyers, 15
 rounds, 1 seed = 90 calls**); the brief's manipulated variables are command-line flags.
 
+## Sprint team and contributions
+
+This folder was extended during the Apart Research AI Collusion Research Sprint (October 2026) by
+**Thomas Huck** ([@sawyer-finn](https://github.com/sawyer-finn)) and **Varad Gunjal**
+([@varadgunjal](https://github.com/varadgunjal)). We worked on sprint project 1.5 (which remedy removes the most
+collusion at the least cost), agreed one shared control in advance (gpt-4.1 sellers, gpt-4.1-mini buyers, seller
+messaging and CEO pressure, 5 sellers x 5 buyers, 15 rounds) and split the remedies between us, so every result
+below is comparable with every other. The base harness is the work of Agrawal et al. (2025), packaged for the
+sprint by Poseidon Research.
+
+**Varad Gunjal: structural remedies (independent entrant sellers)**
+
+- Rule-based entrant sellers that replace LLM sellers: a random entrant and a no-regret (Hedge) learner
+  (`ScriptedSeller` in `src/continuous_double_auction/market/agents.py`; `--entrant_type`, `--n_entrants`),
+  with offline tests in `tests/test_entrant.py`.
+- A seller-only temperature lever (`--seller_temperature`) and larger name pools for markets of up to
+  21 x 21 (`identities.py`).
+- Entrant-aware evaluation: collusion index over LLM sellers only, entrant and LLM-seller profits
+  (`evaluation/evaluate.py`).
+- The shared control (`control41`), the communication-remedy runs (no messaging, message cap, overseer + gag,
+  seller temperature), the entrant runs at 5, 7, 9 and 15 sellers, and the robustness runs (gpt-4.1 buyers,
+  gpt-4o, Claude Sonnet 5.5, DeepSeek V3.1).
+- The analysis pipeline the reports use: paired bootstrap statistics (`experiments/report_stats.py`), figures
+  (`experiments/report_figures.py`), appendix tables (`experiments/report_appendix.sh`) and the
+  sales-starvation analysis (`experiments/starvation_curve.py`).
+- The research proposal (`proposal_rq1.md`), findings log (`FINDINGS.md`), report draft (`REPORT_DRAFT.md`),
+  literature notes (`../research/track-1-deep-research.md`) and the question-designer skill
+  (`../.agents/skills/market-collusion-question-designer/`).
+
+**Thomas Huck: enforcement and information remedies**
+
+- Profit-clawback enforcement by an LLM overseer, ex-post or immediate (`--oversight_threat`), with a
+  configurable detection threshold (`--overseer_threshold`), penalty type (`--overseer_penalty`), the
+  price-aware overseer prompt (`prompt_templates/message_overseer_prompt_extended.jinja2`) and fine notices
+  shown to sellers (`market/market.py`, `prompt_templates/seller_prompt_base.jinja2`).
+- Information restrictions on what sellers see: dark book (`--dark_book`), partial transparency
+  (`--partial_transparency`) and sequential asks (`--sequential_asks`).
+- Pressure and channel variants: partial CEO pressure (`--boss_pressure_fraction`), separate message channels
+  by pressure group (`--split_comms`), and the deterrence prompt (`prompt_templates/seller_prompt_cartel.jinja2`,
+  `--deterrence_level`).
+- The enforcement, threshold-sweep and information-restriction runs, the run scripts
+  (`run_new_experiments.sh`, `run_deterrence_experiment.sh`) and the analysis tools in `analysis/`
+  (`results_loader.py`, `analyze.py`, `analyze_notebook.py`).
+- The enforcement and information-restriction report.
+
+Thomas's commits were made with Claude Code, so `git log` shows them under the author "Claude"; Varad's are
+under his own name. Both sets of features live in the same code and can be combined in one run.
+
 ## Setup
 
 > **Fastest path:** from the repo root, `./setup.sh llm-agent-collusion` sets this experiment up (deps + the shared `poseidon_compute` package) in one step; `./setup.sh` does all experiments. The manual steps below are equivalent.

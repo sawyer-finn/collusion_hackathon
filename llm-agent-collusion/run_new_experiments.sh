@@ -53,7 +53,8 @@ if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
   fi
 fi
 SIM="uv run python $REPO_ROOT/src/continuous_double_auction/simulation.py"
-COMMON="--sellers 5 --buyers 5 --rounds 15 --seller_comms_enabled -y"
+# Matches control41 / control_thresh3: gpt-4.1 sellers, gpt-4.1-mini buyers, messaging + CEO pressure on all sellers
+COMMON="--sellers 5 --buyers 5 --rounds 15 --seller_models gpt-4.1 --buyer_models gpt-4.1-mini --seller_comms_enabled --boss_pressure -y"
 
 SEED_ARGS=""
 for s in $SEEDS; do
@@ -77,10 +78,10 @@ run_condition() {
 # We already have threshold 3 and 4 data. Now fill in 1 and 2.
 # ══════════════════════════════════════════════════════════════════════
 
-run_expost_t1()    { run_condition "expost_thresh1"    --oversight_threat expost    --overseer_threshold 1 ; }
-run_expost_t2()    { run_condition "expost_thresh2"    --oversight_threat expost    --overseer_threshold 2 ; }
-run_immediate_t1() { run_condition "immediate_thresh1" --oversight_threat immediate --overseer_threshold 1 ; }
-run_immediate_t2() { run_condition "immediate_thresh2" --oversight_threat immediate --overseer_threshold 2 ; }
+run_expost_t1()    { run_condition "expost_thresh1_boss"    --oversight_threat expost    --overseer_threshold 1 ; }
+run_expost_t2()    { run_condition "expost_thresh2_boss"    --oversight_threat expost    --overseer_threshold 2 ; }
+run_immediate_t1() { run_condition "immediate_thresh1_boss" --oversight_threat immediate --overseer_threshold 1 ; }
+run_immediate_t2() { run_condition "immediate_thresh2_boss" --oversight_threat immediate --overseer_threshold 2 ; }
 
 # ══════════════════════════════════════════════════════════════════════
 # GROUP 2 — PARTIAL TRANSPARENCY
@@ -89,7 +90,7 @@ run_immediate_t2() { run_condition "immediate_thresh2" --oversight_threat immedi
 # dark book (no collusion).
 # ══════════════════════════════════════════════════════════════════════
 
-run_partial_transparency() { run_condition "partial_transparency" --partial_transparency ; }
+run_partial_transparency() { run_condition "partial_transparency_boss" --partial_transparency ; }
 
 # ══════════════════════════════════════════════════════════════════════
 # GROUP 3 — SEQUENTIAL ASKS
@@ -97,20 +98,25 @@ run_partial_transparency() { run_condition "partial_transparency" --partial_tran
 # Sealed-bid with delayed reveal.
 # ══════════════════════════════════════════════════════════════════════
 
-run_sequential_asks() { run_condition "sequential_asks" --sequential_asks ; }
+run_sequential_asks() { run_condition "sequential_asks_boss" --sequential_asks ; }
+
+# GROUP 4 — DARK BOOK, re-run on the same control configuration
+run_dark_book() { run_condition "dark_book_boss" --dark_book ; }
 
 # ── Dispatch ──
 
 GROUP1="expost_t1 expost_t2 immediate_t1 immediate_t2"
 GROUP2="partial_transparency"
 GROUP3="sequential_asks"
+GROUP4="dark_book"
 
 case "$GROUP" in
   1)   RUN_LIST="$GROUP1" ;;
   2)   RUN_LIST="$GROUP2" ;;
   3)   RUN_LIST="$GROUP3" ;;
-  all) RUN_LIST="$GROUP1 $GROUP2 $GROUP3" ;;
-  *)   echo "Unknown --group: $GROUP (use 1, 2, 3, or all)"; exit 1 ;;
+  4)   RUN_LIST="$GROUP4" ;;
+  all) RUN_LIST="$GROUP1 $GROUP2 $GROUP3 $GROUP4" ;;
+  *)   echo "Unknown --group: $GROUP (use 1, 2, 3, 4, or all)"; exit 1 ;;
 esac
 
 n_conditions=$(echo "$RUN_LIST" | wc -w)

@@ -191,3 +191,12 @@ for tag in starv:
         hb.append(mean([max(v for v in r["buyer_bids"].values() if v is not None) for r in R]))
         la.append(mean([mean(list(llm_asks(r, d).values())) for r in R]))
     print(f"{tag}: lowest ask {mean(lo_):.2f}, highest bid {mean(hb):.2f}, LLM mean ask {mean(la):.2f}")
+
+section("Quoted seller messages (Section 4.2) with the asks posted in the same round")
+QUOTES = [("expost_thresh3", "each seller should make independent decisions"),
+          ("immediate_thresh3", "Regulators are still fining for even small price gaps")]
+for tag, q in QUOTES:
+    for seed, d in runs(tag).items():
+        for r in rounds(d):
+            if any(q in (v or "") for v in r["seller_messages"].values()):
+                print(f"{tag} seed {seed} round {r['round_number']}: asks {r['seller_asks']}")

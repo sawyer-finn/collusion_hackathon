@@ -55,3 +55,7 @@ q7_control: lowest ask 95.99, highest bid 93.50, LLM mean ask 96.43
 q7_noregret1: lowest ask 87.85, highest bid 89.72, LLM mean ask 95.51
 q7_noregret2: lowest ask 84.30, highest bid 88.78, LLM mean ask 93.64
 q7_noregret3: lowest ask 83.84, highest bid 90.18, LLM mean ask 94.64
+
+== Quoted seller messages (Section 4.2) with the asks posted in the same round
+expost_thresh3 seed 0 round 2: asks {'Seller Tara': 97.29, 'Seller Mia': 97.29, 'Seller Raj': 97.29, 'Seller Leo': 97.29, 'Seller Kai': 97.6}
+immediate_thresh3 seed 0 round 14: asks {'Seller Raj': 97.16, 'Seller Mia': 97.16, 'Seller Leo': 97.15, 'Seller Kai': 97.12, 'Seller Tara': 97.15}

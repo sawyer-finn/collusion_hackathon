@@ -63,6 +63,21 @@ sprint by Poseidon Research.
 Thomas's commits were made with Claude Code, so `git log` shows them under the author "Claude"; Varad's are
 under his own name. Both sets of features live in the same code and can be combined in one run.
 
+## Reproducing the report
+
+Every number in the report comes from the run logs in `results/` through these scripts (runs are selected by `auction_config.tag`):
+
+```bash
+bash experiments/reproduce_report_numbers.sh
+```
+
+- `experiments/report_stats.py`: paired statistics behind every table (writes `results/report_stats_*.txt`).
+- `experiments/report_text_numbers.py`: numbers quoted in the text, Table G5 (message coding, ask spread) and Appendix B (writes `results/report_text_numbers.txt`).
+- `experiments/starvation_curve.py`: early-sales analysis and regression in Section 4.4.
+- `experiments/report_figures.py`, `experiments/report_appendix.sh`: figures and per-seed appendix tables.
+
+Crashed runs (`FAILED_*`) and runs from the batch launched without CEO pressure are not included.
+
 ## Setup
 
 > **Fastest path:** from the repo root, `./setup.sh llm-agent-collusion` sets this experiment up (deps + the shared `poseidon_compute` package) in one step; `./setup.sh` does all experiments. The manual steps below are equivalent.

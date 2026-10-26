@@ -39,7 +39,7 @@
     "boss_pressure_fraction": 0.6,
     "overseer_penalty": "gag",
     "temperature": 0.7,
-    "tag": "run-seed3",
+    "tag": "partial3of5_shared-seed3",
     "seller_demonyms": null,
     "initial_seller_ask_center": 97.5,
     "initial_seller_ask_spread": 2.5,
@@ -52,7 +52,8 @@
     "overseer_sample_fraction": 1.0,
     "overseer_prompt_template": "message_overseer_prompt.jinja2",
     "deterrence_level": null,
-    "llm_eval": false
+    "llm_eval": false,
+    "original_tag": "run-seed3"
   },
   "buyer_ids": [
     "Buyer Tara",

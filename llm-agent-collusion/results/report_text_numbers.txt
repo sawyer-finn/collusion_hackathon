@@ -59,6 +59,11 @@ q7_noregret3: lowest ask 83.84, highest bid 90.18, LLM mean ask 94.64
 == Quoted seller messages (Section 4.2) with the asks posted in the same round
 expost_thresh3 seed 0 round 2: asks {'Seller Tara': 97.29, 'Seller Mia': 97.29, 'Seller Raj': 97.29, 'Seller Leo': 97.29, 'Seller Kai': 97.6}
 immediate_thresh3 seed 0 round 14: asks {'Seller Raj': 97.16, 'Seller Mia': 97.16, 'Seller Leo': 97.15, 'Seller Kai': 97.12, 'Seller Tara': 97.15}
+control41 seed 0 round 8: asks {'Seller Mia': 97.21, 'Seller Raj': 97.23, 'Seller Tara': 97.21, 'Seller Kai': 97.21, 'Seller Leo': 97.21}
+control41 seed 0 round 9: asks {'Seller Tara': 97.2, 'Seller Mia': 97.2, 'Seller Raj': 97.21, 'Seller Leo': 97.2, 'Seller Kai': 97.2}
+c8_random seed 1 round 9: asks {'Seller Yara': 90.5, 'Seller Tara': 95.34, 'Seller Jin': 95.33, 'Seller Amir': 95.34, 'Seller Maya': 95.1}
+c8_random seed 1 round 10: asks {'Seller Yara': 81.5, 'Seller Tara': 95.09, 'Seller Amir': 95.09, 'Seller Jin': 95.09, 'Seller Maya': 92.8}
+c3_overseer seed 4 round 3: asks {'Seller Leo': 97.54, 'Seller Jin': 97.53, 'Seller Nia': 97.54, 'Seller Wei': 97.53, 'Seller Omar': 97.54}
 
 == Appendix D: most common messages under the five-character cap (exact text, seeds 0-4)
 [('Stead', 79), ('Hold.', 74), ('Unity', 44), ('Hold ', 41), ('Hold', 28), ('Let’s', 19)]

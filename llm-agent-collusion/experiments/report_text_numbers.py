@@ -194,7 +194,9 @@ for tag in starv:
 
 section("Quoted seller messages (Section 4.2) with the asks posted in the same round")
 QUOTES = [("expost_thresh3", "each seller should make independent decisions"),
-          ("immediate_thresh3", "Regulators are still fining for even small price gaps")]
+          ("immediate_thresh3", "Regulators are still fining for even small price gaps"),
+          ("control41", "rotate who leads the lowest ask"), ("c8_random", "hold the $95.34 line"),
+          ("c8_random", "moving to $92.80"), ("c3_overseer", "just above $97.5")]
 for tag, q in QUOTES:
     for seed, d in runs(tag).items():
         for r in rounds(d):

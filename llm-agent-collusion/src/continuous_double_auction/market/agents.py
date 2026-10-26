@@ -1,10 +1,11 @@
 import json
+import math
 import random
 from pathlib import Path
 from typing import Any, Dict, Optional
 import backoff
 import openai
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 from src.continuous_double_auction.cda_types import Agent, AgentBidResponse
@@ -128,6 +129,95 @@ class ZIPBuyer(Agent):
         return {"bid": base_bid * (1 + noise_factor)}
 
 
+ENTRANT_TYPES = ("random", "noregret")
+ENTRANT_TICK = 0.5  # entrant asks lie on a grid from its cost up to the highest buyer value
+
+
+def counterfactual_profit(ask: float, other_asks: list[float], bids: list[float], cost: float) -> float:
+    """
+    Expected profit of posting `ask` against fixed other asks and bids, under the market's
+    matching rule (market.resolve_trades_if_any): the k-th lowest ask trades with the k-th
+    highest bid while ask <= bid, at the midpoint of the two. Ties with other asks at the same
+    price are split evenly over the tied positions.
+    """
+    bids_desc = sorted(bids, reverse=True)
+    below = sum(1 for a in other_asks if a < ask)
+    tied = sum(1 for a in other_asks if a == ask)
+    total = 0.0
+    for rank in range(below, below + tied + 1):
+        if rank < len(bids_desc) and ask <= bids_desc[rank]:
+            total += (ask + bids_desc[rank]) / 2 - cost
+    return total / (tied + 1)
+
+
+class ScriptedSeller(Agent):
+    """
+    A rule-based seller that replaces an LLM seller (sprint project 1.5: market entrants).
+    It never sends messages, so it is outside the seller chat and the overseer's view, and
+    other sellers only see it through its asks.
+
+    Attributes:
+        mode: "random" draws each ask uniformly from the price grid, ignoring the market.
+            "noregret" is full-information Hedge over the grid: after each round it scores every
+            grid price against that round's other asks and bids (counterfactual_profit), and
+            asks with probability proportional to exp(eta_t * cumulative score), with
+            eta_t = sqrt(8 ln K / t).
+        rng: The entrant's own random stream, kept apart from the global one so adding an
+            entrant leaves agent names and initial orders unchanged for a given seed.
+        cumulative_rewards: Per grid price, the summed counterfactual profit scaled to [0, 1].
+        realized_reward: The same score summed over the asks actually posted.
+    """
+    mode: str = "random"
+    rng: random.Random = Field(default_factory=random.Random)
+    cumulative_rewards: list[float] = Field(default_factory=list)
+    realized_reward: float = 0.0
+    rounds_observed: int = 0
+    last_ask: Optional[float] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    @property
+    def price_grid(self) -> list[float]:
+        top = max(self.expt_params.buyer_valuations)
+        n = int(round((top - self.valuation) / ENTRANT_TICK))
+        return [round(self.valuation + ENTRANT_TICK * i, 2) for i in range(n + 1)]
+
+    def hedge_weights(self) -> list[float]:
+        grid = self.price_grid
+        if not self.cumulative_rewards:
+            return [1.0 / len(grid)] * len(grid)
+        eta = math.sqrt(8 * math.log(len(grid)) / (self.rounds_observed + 1))
+        top = max(self.cumulative_rewards)
+        w = [math.exp(eta * (s - top)) for s in self.cumulative_rewards]
+        return [x / sum(w) for x in w]
+
+    def generate_bid_response(self, **kwargs: Any) -> AgentBidResponse:
+        if self.mode == "random":
+            ask = self.rng.choice(self.price_grid)
+        elif self.mode == "noregret":
+            ask = self.rng.choices(self.price_grid, weights=self.hedge_weights())[0]
+        else:
+            raise ValueError(f"Unknown entrant mode: {self.mode}")
+        self.last_ask = ask
+        return {"ask": ask}
+
+    def observe_round(self, seller_asks: list[tuple[float, str]], buyer_bids: list[tuple[float, str]]) -> None:
+        """Full-information feedback: the order book as it stood just before this round's matching."""
+        if self.mode != "noregret":
+            return
+        others = [a for a, sid in seller_asks if sid != self.id]
+        bids = [b for b, _ in buyer_bids]
+        scale = max(self.expt_params.buyer_valuations) - self.valuation
+        scores = [counterfactual_profit(p, others, bids, self.valuation) / scale for p in self.price_grid]
+        if not self.cumulative_rewards:
+            self.cumulative_rewards = [0.0] * len(scores)
+        self.cumulative_rewards = [s + r for s, r in zip(self.cumulative_rewards, scores)]
+        if self.last_ask is not None:
+            self.realized_reward += counterfactual_profit(self.last_ask, others, bids, self.valuation) / scale
+        self.rounds_observed += 1
+
+
 class LMBuyer(Agent):
     """
     A simple LLM Buyer agent.
@@ -234,6 +324,7 @@ class LMSeller(Agent):
     class Config:
         arbitrary_types_allowed = True
 
+
     def __init__(self, **data):
         super().__init__(**data)
         self.memory_manager = MemoryManager()
@@ -245,6 +336,7 @@ class LMSeller(Agent):
         if self.boss_pressure_override is not None:
             return self.boss_pressure_override
         return self.expt_params.boss_pressure
+
 
     @backoff.on_exception(
         wait_gen=backoff.expo,

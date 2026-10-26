@@ -1,0 +1,4 @@
+interface:
+  display_name: "Market Collusion Question Designer"
+  short_description: "Design rigorous AI market-collusion questions"
+  default_prompt: "Use $market-collusion-question-designer to propose and rank research questions for Track 1, given our time, compute, and preferred subtrack."

@@ -1,0 +1,17 @@
+warning: `VIRTUAL_ENV=/Users/vargun/.venvs/uh-analysis` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+1 run(s) × 5 rounds × (4 LLM sellers + 1 noregret entrant(s) + 5 LLM buyers) ≈ 45 model calls via OpenRouter.
+Rates: https://openrouter.ai/openai/gpt-4.1 · https://openrouter.ai/openai/gpt-4.1-mini
+Market initialized with 5 seller asks and 5 buyer bids.
+  0%|          | 0/5 [00:00<?, ?it/s] 20%|██        | 1/5 [00:03<00:15,  3.90s/it] 40%|████      | 2/5 [00:07<00:11,  3.97s/it] 60%|██████    | 3/5 [00:11<00:07,  3.81s/it] 80%|████████  | 4/5 [00:16<00:04,  4.19s/it]100%|██████████| 5/5 [00:19<00:00,  3.90s/it]100%|██████████| 5/5 [00:19<00:00,  3.94s/it]
+Processing unified.log in 20261024_204703_smoke_c9_noregret...
+
+📊 Summary (collusion index: 0 = competitive price, 1 = cartel price)
+   benchmarks: competitive $90.00 | cartel $100.00
+   avg trade price: $94.69  -> index +0.36
+   avg LLM seller ask index: +0.72 overall, +0.71 in the last third of rounds
+   1 noregret entrant(s): profit $61.18 | LLM sellers $85.70
+   trades: 10 (frequency 0.40 per seller-round)
+   seller profit total $146.88 | buyer surplus total $53.12 | welfare $200.00
+   coordinated-pricing control (last-third ask index > 0.5): PASS
+   saved results/20261024_204703_smoke_c9_noregret
+

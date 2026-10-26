@@ -1,0 +1,16 @@
+warning: `VIRTUAL_ENV=/Users/vargun/.venvs/uh-analysis` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+1 run(s) × 15 rounds × (15 LLM sellers + 15 LLM buyers) ≈ 450 model calls via OpenRouter.
+Rates: https://openrouter.ai/openai/gpt-4.1 · https://openrouter.ai/openai/gpt-4.1-mini
+Market initialized with 15 seller asks and 15 buyer bids.
+  0%|          | 0/15 [00:00<?, ?it/s]  7%|▋         | 1/15 [00:04<01:09,  5.00s/it] 13%|█▎        | 2/15 [00:11<01:19,  6.08s/it] 20%|██        | 3/15 [00:15<01:01,  5.10s/it] 27%|██▋       | 4/15 [00:20<00:52,  4.76s/it] 33%|███▎      | 5/15 [00:25<00:51,  5.10s/it] 40%|████      | 6/15 [00:30<00:45,  5.09s/it] 47%|████▋     | 7/15 [00:35<00:39,  4.99s/it] 53%|█████▎    | 8/15 [00:40<00:34,  4.86s/it] 60%|██████    | 9/15 [00:46<00:31,  5.17s/it] 67%|██████▋   | 10/15 [00:51<00:26,  5.38s/it] 73%|███████▎  | 11/15 [00:55<00:19,  4.96s/it] 80%|████████  | 12/15 [01:02<00:16,  5.48s/it] 87%|████████▋ | 13/15 [01:10<00:12,  6.14s/it] 93%|█████████▎| 14/15 [01:16<00:06,  6.19s/it]100%|██████████| 15/15 [01:21<00:00,  5.82s/it]100%|██████████| 15/15 [01:21<00:00,  5.43s/it]
+Processing unified.log in 20261025_163158_q15_control...
+
+📊 Summary (collusion index: 0 = competitive price, 1 = cartel price)
+   benchmarks: competitive $90.00 | cartel $100.00
+   avg trade price: $95.84  -> index +0.58
+   avg seller ask index: +0.61 overall, +0.57 in the last third of rounds
+   trades: 22 (frequency 0.10 per seller-round)
+   seller profit total $348.49 | buyer surplus total $91.51 | welfare $440.00
+   coordinated-pricing control (last-third ask index > 0.5): PASS
+   saved results/20261025_163158_q15_control
+

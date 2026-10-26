@@ -200,3 +200,36 @@ for tag, q in QUOTES:
         for r in rounds(d):
             if any(q in (v or "") for v in r["seller_messages"].values()):
                 print(f"{tag} seed {seed} round {r['round_number']}: asks {r['seller_asks']}")
+
+section("Appendix D: most common messages under the five-character cap (exact text, seeds 0-4)")
+from collections import Counter
+cnt = Counter(v for d in runs("c2_msgcap", S5).values() for r in rounds(d)
+              for v in r["seller_messages"].values() if v)
+print(cnt.most_common(6))
+
+section("Appendix E: Spearman of lowest ask (rounds 1-5) with last-third index, condition means")
+def rank(xs):
+    o = sorted(range(len(xs)), key=lambda i: xs[i]); r = [0] * len(xs)
+    for k, i in enumerate(o): r[i] = k
+    return r
+cm_low, cm_idx = [], []
+for tag in starv:
+    ds = list(runs(tag).values())
+    cm_low.append(mean([mean([min(r["seller_asks"].values()) for r in rounds(d)[:5]]) for d in ds]))
+    cm_idx.append(mean([idx(d) for d in ds]))
+a, b = rank(cm_low), rank(cm_idx)
+n_ = len(a)
+print(f"{n_} conditions: Spearman {1 - 6 * sum((x - y) ** 2 for x, y in zip(a, b)) / (n_ * (n_ ** 2 - 1)):.2f}")
+
+section("Appendix I: number of runs behind the report")
+REPORT_TAGS = ["control41", "c5_sellertemp", "c2_msgcap", "c3_overseer", "c1_nomsg",
+               "partial3of5_shared", "partial3of5_split", "partial3of5_nomsg",
+               "expost_corrected", "immediate_corrected", "expost_thresh3", "immediate_thresh3",
+               "expost_thresh2_boss", "immediate_thresh2_boss", "expost_thresh1_boss", "immediate_thresh1_boss",
+               "control_thresh3", "partial_transparency_boss", "dark_book_comms", "sequential_asks_boss",
+               "dark_book_no_comms", "dark_book_partial_boss", "c9_noregret1", "c8_random", "c8b_random2",
+               "c11_mixed", "c10_noregret2", "control41_3s", "anchor_c0_control", "anchor_c10_noregret2",
+               "b10_control", "b10_noregret2", "g4o_control", "g4o_noregret2", "s55_control", "ds31_control",
+               "q21_control", "control"] + [f"q{s}_{c}" for s in (7, 9, 15) for c in
+                                            ("control", "noregret1", "noregret2", "noregret3", "noregret4")]
+print(sum(len(runs(t)) for t in REPORT_TAGS), "runs")

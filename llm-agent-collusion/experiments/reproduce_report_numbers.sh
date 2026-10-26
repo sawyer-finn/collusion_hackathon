@@ -15,7 +15,8 @@ for s in 7 9 15; do
   python3 experiments/report_stats.py q${s}_control q${s}_noregret1 q${s}_noregret2 q${s}_noregret3 q${s}_noregret4
 done > results/report_stats_scaling.txt 2>&1
 { python3 experiments/report_stats.py anchor_c0_control anchor_c10_noregret2
-  for t in g4o_control s55_control ds31_control q21_control; do python3 experiments/report_stats.py $t; done
+  python3 experiments/report_stats.py b10_control b10_noregret2
+  for t in g4o_control s55_control ds31_control q21_control control; do python3 experiments/report_stats.py $t; done
 } > results/report_stats_robustness.txt
 python3 experiments/report_text_numbers.py > results/report_text_numbers.txt
 python3 experiments/starvation_curve.py > results/starvation_curve.txt

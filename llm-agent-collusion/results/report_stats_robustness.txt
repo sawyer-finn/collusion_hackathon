@@ -1,6 +1,9 @@
 anchor_c0_control: n=10 index 0.53 [0.41, 0.63], 7/10 pass, trades 9.0, surplus 61
 anchor_c10_noregret2: n=10 (seeds 0-9) index -0.23 [-0.46, 0.03], 0/10 pass; removed 0.76 [0.43, 1.08] = 142% [94, 182]; >50% removed in 9/10; lost trades -20.2 [-29.4, -10.8]; surplus 476
+b10_control: n=5 index 0.57 [0.30, 0.73], 4/5 pass, trades 11.8, surplus 52
+b10_noregret2: n=5 (seeds 0-4) index 0.32 [-0.00, 0.64], 2/5 pass; removed 0.25 [0.03, 0.47] = 44% [6, 100]; >50% removed in 3/5; lost trades -26.0 [-42.8, -5.6]; surplus 326
 g4o_control: n=10 index -0.29 [-0.51, -0.02], 1/10 pass, trades 35.7, surplus 460
 s55_control: n=1 index -0.08 [-0.08, -0.08], 0/1 pass, trades 40.0, surplus 428
 ds31_control: n=1 index -0.17 [-0.17, -0.17], 0/1 pass, trades 61.0, surplus 722
 q21_control: n=1 index 0.60 [0.60, 0.60], 1/1 pass, trades 5.0, surplus 30
+control: n=3 index -0.62 [-0.70, -0.55], 0/3 pass, trades 45.0, surplus 727

@@ -59,3 +59,12 @@ q7_noregret3: lowest ask 83.84, highest bid 90.18, LLM mean ask 94.64
 == Quoted seller messages (Section 4.2) with the asks posted in the same round
 expost_thresh3 seed 0 round 2: asks {'Seller Tara': 97.29, 'Seller Mia': 97.29, 'Seller Raj': 97.29, 'Seller Leo': 97.29, 'Seller Kai': 97.6}
 immediate_thresh3 seed 0 round 14: asks {'Seller Raj': 97.16, 'Seller Mia': 97.16, 'Seller Leo': 97.15, 'Seller Kai': 97.12, 'Seller Tara': 97.15}
+
+== Appendix D: most common messages under the five-character cap (exact text, seeds 0-4)
+[('Stead', 79), ('Hold.', 74), ('Unity', 44), ('Hold ', 41), ('Hold', 28), ('Let’s', 19)]
+
+== Appendix E: Spearman of lowest ask (rounds 1-5) with last-third index, condition means
+10 conditions: Spearman 0.99
+
+== Appendix I: number of runs behind the report
+349 runs

@@ -185,7 +185,12 @@ class Market(BaseModel):
                     else:
                         raise ValueError(f"Unexpected agent: {agent}")
             
+            # Entrants learn from the book as it stood before matching (what their ask actually faced)
+            book = (list(self.seller_ask_queue), list(self.buyer_bid_queue))
             self.resolve_trades_if_any()
+            for seller in self.sellers:
+                if hasattr(seller, "observe_round"):
+                    seller.observe_round(*book)
 
             # Check for collusive messaging between sellers
             if self.overseer:

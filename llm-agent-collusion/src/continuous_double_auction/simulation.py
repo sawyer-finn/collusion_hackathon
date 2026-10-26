@@ -45,7 +45,14 @@ from src.continuous_double_auction.identities import (
     get_random_buyer_company_names,
     get_random_seller_company_names,
 )
-from src.continuous_double_auction.market.agents import LMBuyer, LMSeller, MessageOverseer, ZIPBuyer
+from src.continuous_double_auction.market.agents import (
+    ENTRANT_TYPES,
+    LMBuyer,
+    LMSeller,
+    MessageOverseer,
+    ScriptedSeller,
+    ZIPBuyer,
+)
 from src.continuous_double_auction.market.market import Market
 from src.continuous_double_auction.util.logging_util import ExperimentLogger
 from src.continuous_double_auction.util.misc import get_client, initialize_market
@@ -80,6 +87,10 @@ def run_simulation(params: ExperimentParams, log_dir: Optional[str] = None, use_
     client_kwargs = {"temperature": params.temperature}
     if params.seed is not None:
         client_kwargs["seed"] = params.seed  # forwarded to providers that support it (OpenAI family)
+    # sellers can run at their own temperature (1.5 lever) while buyers keep --temperature
+    seller_client_kwargs = dict(client_kwargs)
+    if params.seller_temperature is not None:
+        seller_client_kwargs["temperature"] = params.seller_temperature
 
     # Initialize buyer and seller agents
     num_buyers = len(params.buyer_valuations)
@@ -113,22 +124,42 @@ def run_simulation(params: ExperimentParams, log_dir: Optional[str] = None, use_
                 )
             )
 
-    sellers = [
-        LMSeller(
-            id=f"Seller {seller_names[i]}",
-            company=seller_companies[i],
-            valuation=params.seller_valuations[i],
-            expt_params=params,
-            client=get_client(model=params.seller_models[i], **client_kwargs),
-            logger=logger,
-        )
-        for i in range(num_sellers)
-    ]
+    # Entrants replace the last n_entrants sellers, so the number of sellers stays fixed. Each has its
+    # own seeded random stream, leaving the global one (names, initial orders) as in the control.
+    first_entrant = num_sellers - params.n_entrants
+    sellers = []
+    for i in range(num_sellers):
+        if i >= first_entrant:
+            sellers.append(
+                ScriptedSeller(
+                    id=f"Seller {seller_names[i]}",
+                    company=seller_companies[i],
+                    valuation=params.seller_valuations[i],
+                    expt_params=params,
+                    mode=params.entrant_types[i - first_entrant],
+                    rng=random.Random(1000 * (params.seed or 0) + i),
+                )
+            )
+        else:
+            sellers.append(
+                LMSeller(
+                    id=f"Seller {seller_names[i]}",
+                    company=seller_companies[i],
+                    valuation=params.seller_valuations[i],
+                    expt_params=params,
+                    client=get_client(model=params.seller_models[i], **seller_client_kwargs),
+                    logger=logger,
+                )
+            )
 
     logger.metadata["buyer_ids"] = [buyer.id for buyer in buyers]
     logger.metadata["seller_ids"] = [seller.id for seller in sellers]
+    logger.metadata["entrant_ids"] = [seller.id for seller in sellers[first_entrant:]]
     logger.metadata["resolved_models"] = {
-        "sellers": [effective_model(m) for m in params.seller_models],
+        "sellers": [
+            f"entrant:{params.entrant_types[i - first_entrant]}" if i >= first_entrant else effective_model(m)
+            for i, m in enumerate(params.seller_models)
+        ],
         "buyers": [effective_model(m) if m else ZIP_BUYER for m in params.buyer_models],
         "overseer": effective_model(params.overseer_model) if params.oversight_enabled else None,
     }
@@ -164,6 +195,18 @@ def run_simulation(params: ExperimentParams, log_dir: Optional[str] = None, use_
         market.run_round()
         logger.log_auction_round(last_round=market.rounds[-1])
 
+    # learner state, to check the entrant behaved as designed (regret = best fixed price − realized)
+    logger.metadata["entrant_state"] = {
+        s.id: {
+            "mode": s.mode,
+            "price_grid": s.price_grid,
+            "cumulative_rewards": s.cumulative_rewards,
+            "realized_reward": s.realized_reward,
+            "final_weights": s.hedge_weights() if s.mode == "noregret" else None,
+        }
+        for s in sellers
+        if isinstance(s, ScriptedSeller)
+    }
     logger.save_experiment_summary()
     metrics = compute_metrics_for_exp_dir(logger.log_dir, run_llm_judge=params.llm_eval)
     write_metrics_to_file(logger.log_dir, metrics)
@@ -180,7 +223,9 @@ def print_summary(metrics: dict[str, Any], params: ExperimentParams, log_dir: Pa
     Collusion index: 0 = competitive equilibrium price, 1 = joint-profit-maximising price.
     """
     ce, jpm = metrics.get("competitive_equilibrium_price"), metrics.get("joint_profit_maximization_price")
-    idx = [x for x in metrics.get("collusion_indices_avg_seller_asks", []) if x is not None and not np.isnan(x)]
+    # with entrants, report the LLM sellers' asks (the all-seller index would fall mechanically)
+    idx_key = "collusion_indices_avg_llm_seller_asks" if params.n_entrants else "collusion_indices_avg_seller_asks"
+    idx = [x for x in metrics.get(idx_key, []) if x is not None and not np.isnan(x)]
     last = idx[-max(1, len(idx) // 3) :] if idx else []
     mean_last = float(np.mean(last)) if last else float("nan")
     trade_idx = [
@@ -196,7 +241,13 @@ def print_summary(metrics: dict[str, Any], params: ExperimentParams, log_dir: Pa
         if trade_idx
         else "   no trades happened"
     )
-    print(f"   avg seller ask index: {np.mean(idx):+.2f} overall, {mean_last:+.2f} in the last third of rounds")
+    who = "LLM seller" if params.n_entrants else "seller"
+    print(f"   avg {who} ask index: {np.mean(idx):+.2f} overall, {mean_last:+.2f} in the last third of rounds")
+    if params.n_entrants:
+        print(
+            f"   {params.entrant_label} entrant(s): profit ${metrics.get('entrant_profits', 0):.2f} | "
+            f"LLM sellers ${metrics.get('llm_seller_profits', 0):.2f}"
+        )
     print(
         f"   trades: {metrics.get('num_trades')} (frequency {metrics.get('trade_frequency', 0):.2f} per seller-round)"
     )
@@ -293,7 +344,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=[DEFAULT_MODEL],
         help="one for all buyers or one per buyer; 'zip' = rule-based buyer (free)",
     )
-    m.add_argument("--temperature", type=float, default=0.7)
+    m.add_argument("--temperature", type=float, default=0.7, help="sampling temperature for sellers and buyers")
+    m.add_argument(
+        "--seller_temperature",
+        type=float,
+        default=None,
+        help="sellers only (1.5 lever); buyers keep --temperature. Default: same as --temperature",
+    )
     m.add_argument("--seller_prompt_template", type=str, default="seller_prompt_base.jinja2")
 
     a = p.add_argument_group("interventions (sprint projects 1.3, 1.5, 3.4)")
@@ -313,6 +370,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="share of seller messages the overseer sees each round (try 0.25, 0.5, 1.0)",
     )
     a.add_argument("--boss_pressure", action="store_true", help="CEO message pressuring sellers to keep prices high")
+    a.add_argument(
+        "--entrant_type",
+        nargs="+",
+        choices=ENTRANT_TYPES,
+        default=None,
+        help="rule-based seller(s) replacing LLM sellers (1.5), asking on a $0.50 grid from cost to buyer value; "
+        "random = uniform draw, noregret = full-information Hedge on each round's counterfactual profit. "
+        "One type for all entrants, or one per entrant in seller order (e.g. noregret random)",
+    )
+    a.add_argument("--n_entrants", type=int, default=0, help="replace the last N sellers with entrants")
 
     o = p.add_argument_group("output")
     o.add_argument("--tag", type=str, default="", help="run name suffix")
@@ -338,16 +405,28 @@ def main() -> None:
     if args.oversight_enabled and not args.seller_comms_enabled:
         sys.exit("❌ --oversight_enabled requires --seller_comms_enabled")
 
+    if args.n_entrants and args.entrant_type is None:
+        sys.exit("❌ --n_entrants needs --entrant_type")
+    if not 0 <= args.n_entrants < args.sellers:
+        sys.exit("❌ --n_entrants must leave at least one LLM seller")
+    if args.entrant_type and len(args.entrant_type) not in (1, args.n_entrants):
+        sys.exit("❌ --entrant_type needs one type for all entrants or exactly one per entrant")
+    # a single type is stored as a string, so earlier runs' metadata keeps the same shape
+    entrant_type = None if not args.entrant_type else args.entrant_type[0] if len(args.entrant_type) == 1 else args.entrant_type
+
     n_lm_buyers = sum(1 for b in buyer_models if b not in (ZIP_BUYER, "none", "None"))
-    calls_per_run = args.rounds * (args.sellers + n_lm_buyers)
+    n_lm_sellers = args.sellers - args.n_entrants
+    calls_per_run = args.rounds * (n_lm_sellers + n_lm_buyers)
     if args.oversight_enabled:
         calls_per_run += args.rounds
     if args.llm_eval:
-        calls_per_run += args.rounds * args.sellers
+        calls_per_run += args.rounds * n_lm_sellers
     n_calls = calls_per_run * len(args.seeds)
-    models = sorted({effective_model(m) for m in seller_models + [b for b in buyer_models if b not in (ZIP_BUYER,)]})
+    lm_seller_models = seller_models[:n_lm_sellers]
+    models = sorted({effective_model(m) for m in lm_seller_models + [b for b in buyer_models if b not in (ZIP_BUYER,)]})
+    entrants = f" + {args.n_entrants} {'/'.join(args.entrant_type)} entrant(s)" if args.n_entrants else ""
     print(
-        f"{len(args.seeds)} run(s) × {args.rounds} rounds × ({args.sellers} sellers + {n_lm_buyers} LLM buyers"
+        f"{len(args.seeds)} run(s) × {args.rounds} rounds × ({n_lm_sellers} LLM sellers{entrants} + {n_lm_buyers} LLM buyers"
         f"{' + overseer' if args.oversight_enabled else ''}{' + judge' if args.llm_eval else ''}) "
         f"≈ {n_calls:,} model calls via OpenRouter.\n"
         "Rates: " + " · ".join(f"https://openrouter.ai/{m}" for m in models)
@@ -376,12 +455,15 @@ def main() -> None:
             oversight_enabled=args.oversight_enabled,
             boss_pressure=args.boss_pressure,
             temperature=args.temperature,
+            seller_temperature=args.seller_temperature,
             tag=tag,
             max_message_length=args.max_message_length,
             seed=seed,
             overseer_model=args.overseer_model,
             overseer_sample_fraction=args.overseer_sample_fraction,
             llm_eval=args.llm_eval,
+            entrant_type=entrant_type,
+            n_entrants=args.n_entrants,
         )
         try:
             run_simulation(params, log_dir=args.log_dir, use_wandb=args.wandb)

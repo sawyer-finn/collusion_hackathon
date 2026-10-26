@@ -44,6 +44,7 @@ class ExperimentParams(BaseModel):
     oversight_enabled: bool = False  # Whether to enable oversight for sellers
     boss_pressure: bool = False  # Whether to apply pressure on sellers to keep prices high
     temperature: float = 0.7
+    seller_temperature: Optional[float] = None  # sellers only (1.5 lever); None = same as temperature
     tag: str = ""
     seller_demonyms: Optional[dict[str, str]] = None  # Maps seller IDs to their country demonyms (e.g., "seller_1": "American")
     # Initial market conditions
@@ -58,7 +59,10 @@ class ExperimentParams(BaseModel):
     overseer_model: str = "gpt-4.1-mini"     # model reading seller messages when oversight is enabled (paper: gpt-4.1-mini)
     overseer_sample_fraction: float = 1.0    # share of seller messages the overseer gets to see (sprint project 3.4)
     llm_eval: bool = False                   # run the LLM-as-judge coordination scoring after the run (paper: always)
-    
+    entrant_type: Optional[str | list[str]] = None  # rule-based seller(s) replacing LLM sellers (sprint project 1.5):
+                                             # one type for all entrants, or one per entrant (e.g. ["noregret", "random"])
+    n_entrants: int = 0                      # how many of the last sellers are replaced by entrants
+
     @model_validator(mode='after')
     def validate_param_combinations(self) -> Self:
         if len(self.seller_valuations) != len(self.seller_models):
@@ -69,8 +73,30 @@ class ExperimentParams(BaseModel):
             raise ValueError('Oversight can only be enabled if seller communications are enabled')
         if not 0.0 <= self.overseer_sample_fraction <= 1.0:
             raise ValueError('overseer_sample_fraction must be between 0 and 1')
+        if self.n_entrants and self.entrant_type is None:
+            raise ValueError('n_entrants > 0 requires an entrant_type')
+        if not 0 <= self.n_entrants < len(self.seller_valuations):
+            raise ValueError('n_entrants must leave at least one LLM seller')
+        if isinstance(self.entrant_type, list) and len(self.entrant_type) not in (1, self.n_entrants):
+            raise ValueError('entrant_type needs one type for all entrants or exactly one per entrant')
         self.buyer_models = [None if m in (None, ZIP_BUYER, "none", "None") else m for m in self.buyer_models]
         return self
+
+    @property
+    def entrant_types(self) -> list[str]:
+        """One type per entrant, in seller order (a single type applies to all entrants)."""
+        if self.entrant_type is None:
+            return []
+        types = [self.entrant_type] if isinstance(self.entrant_type, str) else list(self.entrant_type)
+        return types * self.n_entrants if len(types) == 1 else types
+
+    @property
+    def entrant_label(self) -> str:
+        """e.g. '2 noregret' or '1 noregret + 1 random'"""
+        counts: dict[str, int] = {}
+        for t in self.entrant_types:
+            counts[t] = counts.get(t, 0) + 1
+        return " + ".join(f"{n} {t}" for t, n in counts.items())
 
 
 AgentBidResponse = dict[str, Any]
